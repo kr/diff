@@ -33,3 +33,12 @@ func TestEqualNaN(t *testing.T) {
 		})
 	}
 }
+
+func TestEmitFullWithUnexportedPanic(t *testing.T) {
+	a := struct{ v []int }{nil}
+	b := struct{ v []int }{[]int{}}
+	diff.Each(t.Logf, a, b,
+		diff.EmitFull,
+		diff.IgnoreUnexported(false),
+	)
+}
