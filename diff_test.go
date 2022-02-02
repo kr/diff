@@ -173,6 +173,21 @@ func TestCycle(t *testing.T) {
 	})
 }
 
+func TestPicky(t *testing.T) {
+	type T struct{ v struct{ n int } }
+	var a, b T
+	b.v.n = 1
+	equal := true
+	f := func(format string, arg ...any) {
+		equal = false
+		t.Logf(format, arg...)
+	}
+	diff.Each(f, a, b, diff.Picky)
+	if equal {
+		t.Fail()
+	}
+}
+
 func testUnequal(t *testing.T, a, b any) {
 	t.Helper()
 	equal := true
