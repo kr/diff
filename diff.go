@@ -84,7 +84,7 @@ func (e *printEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
 	case pathOnly:
 		e.sink("%s", strings.Join(e.path, ""))
 	case full:
-		e.sink("%s% #v != % #v", p, reflectAny(av), reflectAny(bv))
+		e.sink("%s%#v != %#v", p, av, bv)
 	default:
 		panic("diff: bad verbose level")
 	}
@@ -339,15 +339,4 @@ func keyDiff(av, bv reflect.Value) (ak, both, bk []reflect.Value) {
 		}
 	}
 	return ak, both, bk
-}
-
-// reflectAny is like rv.Interface(), but it returns untyped nil
-// for the zero Value.
-func reflectAny(rv reflect.Value) any {
-	if !rv.IsValid() {
-		return nil
-	}
-	// Note, Interface panics if rv was obtained from an unexported field.
-	// We intend that never to happen here so a panic is appropriate.
-	return rv.Interface()
 }
