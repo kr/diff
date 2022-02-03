@@ -13,7 +13,6 @@ func TestTimeInUTCEqual(t *testing.T) {
 	t1 := tim.In(time.Local)
 	diff.Each(t.Errorf, t0, t1,
 		diff.TimeInUTC,
-		diff.IgnoreUnexported(false),
 	)
 }
 
@@ -29,7 +28,6 @@ func TestTimeInUTCUnequal(t *testing.T) {
 	}
 	diff.Each(sink, t0, t1,
 		diff.TimeInUTC,
-		diff.IgnoreUnexported(false),
 	)
 	if equal {
 		t.Fail()
@@ -50,7 +48,6 @@ func TestNoTimeInUTCLoc(t *testing.T) {
 	}
 	diff.Each(sink, t0, t1,
 		diff.TransformRemove[time.Time](),
-		diff.IgnoreUnexported(false),
 	)
 	if equal {
 		t.Fail()
