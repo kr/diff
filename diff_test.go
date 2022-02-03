@@ -3,6 +3,7 @@ package diff_test
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 	"unsafe"
 
@@ -183,6 +184,28 @@ func TestPicky(t *testing.T) {
 	diff.Each(f, a, b, diff.Picky)
 	if equal {
 		t.Fail()
+	}
+}
+
+func TestOneNilPointer(t *testing.T) {
+	var a, b *int
+	b = ptr(1)
+	t.Logf("a %#v", a)
+	t.Logf("b %#v", b)
+	want := "*int"
+	var got string
+	equal := true
+	f := func(format string, arg ...any) {
+		got = fmt.Sprintf(format, arg...)
+		equal = false
+		t.Logf(format, arg...)
+	}
+	diff.Each(f, a, b)
+	if equal {
+		t.Fail()
+	}
+	if !strings.Contains(got, want) {
+		t.Errorf("emit = %q, want it to contain %q", got, want)
 	}
 }
 
