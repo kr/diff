@@ -39,7 +39,6 @@ var (
 	// modifying it has no effect on the default behavior.)
 	Default Option = OptionList(
 		EmitAuto,
-		IgnoreUnexported(true),
 		TimeInUTC,
 		TimeDelta,
 	)
@@ -50,7 +49,6 @@ var (
 	Picky Option = OptionList(
 		EmitFull,
 		EqualFuncs(false),
-		IgnoreUnexported(false),
 		TransformRemove[time.Time](),
 		FormatRemove[time.Time](),
 	)
@@ -103,14 +101,6 @@ var (
 func verbosity(n level) Option {
 	return Option{func(c *config) {
 		c.level = n
-	}}
-}
-
-// IgnoreUnexported controls whether unexported fields will be compared.
-// If true, unexported fields are skipped.
-func IgnoreUnexported(b bool) Option {
-	return Option{func(c *config) {
-		c.ignoreUnexported = b
 	}}
 }
 

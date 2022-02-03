@@ -8,10 +8,9 @@ import (
 )
 
 // Each compares values a and b, calling f for each difference it finds.
-// Its conditions for equality are similar to reflect.DeepEqual,
-// except that by default it ignores unexported fields.
+// By default, its conditions for equality are similar to reflect.DeepEqual.
 //
-// The behavior of Each can be adjusted by supplying Option values.
+// The behavior can be adjusted by supplying Option values.
 // See Default for a complete list of default options.
 // Values in opt apply in addition to (and override) the defaults.
 func Each(f func(format string, arg ...any), a, b any, opt ...Option) {
@@ -34,10 +33,6 @@ type differ struct {
 
 type config struct {
 	level level // verbosity
-
-	// ignoreUnexported controls whether walk visits
-	// unexported struct members.
-	ignoreUnexported bool
 
 	// equalFuncs treats non-nil functions as equal.
 	// In the == operator, non-nil function values
@@ -216,9 +211,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk bool) {
 		}
 	case reflect.Struct:
 		for i := 0; i < t.NumField(); i++ {
-			if !d.config.ignoreUnexported || t.Field(i).IsExported() {
-				d.walk(e.subf("."+t.Field(i).Name), av.Field(i), bv.Field(i), true)
-			}
+			d.walk(e.subf("."+t.Field(i).Name), av.Field(i), bv.Field(i), true)
 		}
 	case reflect.Func:
 		if d.config.equalFuncs {

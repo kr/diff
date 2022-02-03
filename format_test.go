@@ -24,7 +24,6 @@ func TestTimeFormat(t *testing.T) {
 	}
 	diff.Each(sink, t0, t1,
 		diff.TimeDelta,
-		diff.IgnoreUnexported(false),
 	)
 	if got != want {
 		t.Fatalf("diff = %q, want %q", got, want)

@@ -62,7 +62,6 @@ func TestEqual(t *testing.T) {
 		t.Run(fmt.Sprintf("%v", tt), func(t *testing.T) {
 			diff.Each(t.Errorf, tt[0], tt[1],
 				diff.EqualFuncs(false),
-				diff.IgnoreUnexported(false),
 			)
 		})
 		t.Run(fmt.Sprintf("unexported %v", tt), func(t *testing.T) {
@@ -70,7 +69,6 @@ func TestEqual(t *testing.T) {
 				struct{ v any }{tt[0]},
 				struct{ v any }{tt[1]},
 				diff.EqualFuncs(false),
-				diff.IgnoreUnexported(false),
 			)
 		})
 	}
@@ -198,7 +196,6 @@ func testUnequal(t *testing.T, a, b any) {
 	}
 	diff.Each(sink, a, b,
 		diff.EqualFuncs(false),
-		diff.IgnoreUnexported(false),
 	)
 	if equal {
 		t.Fail()
