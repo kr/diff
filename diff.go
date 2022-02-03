@@ -22,7 +22,7 @@ func Each(f func(format string, arg ...any), a, b any, opt ...Option) {
 	d.config.format = map[reflect.Type]reflect.Value{}
 	OptionList(defaultOpt, OptionList(opt...)).apply(&d.config)
 	e := &printEmitter{sink: f, level: d.config.level}
-	d.walk(e, reflect.ValueOf(a), reflect.ValueOf(b), true)
+	d.walk(e, reflect.ValueOf(a), reflect.ValueOf(b), true, true)
 }
 
 type differ struct {
@@ -130,20 +130,20 @@ func (d *differ) equal(av, bv reflect.Value) bool {
 	d2.config.xform = nil
 	d2.config.format = nil
 	e := &countEmitter{}
-	d2.walk(e, av, bv, true)
+	d2.walk(e, av, bv, true, true)
 	return !e.didEmit()
 }
 
-func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk bool) {
+func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	if !av.IsValid() && !bv.IsValid() {
 		return
 	}
 	if !av.IsValid() {
-		e.emitf(av, bv, "nil != %v", formatShort(bv))
+		e.emitf(av, bv, "nil != %v", formatShort(bv, true))
 		return
 	}
 	if !bv.IsValid() {
-		e.emitf(av, bv, "%v != nil", formatShort(av))
+		e.emitf(av, bv, "%v != nil", formatShort(av, true))
 		return
 	}
 
@@ -207,24 +207,24 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk bool) {
 	case reflect.Array:
 		// TODO(kr): fancy diff (histogram, myers)
 		for i := 0; i < t.Len(); i++ {
-			d.walk(e.subf("[%d]", i), av.Index(i), bv.Index(i), true)
+			d.walk(e.subf("[%d]", i), av.Index(i), bv.Index(i), true, false)
 		}
 	case reflect.Struct:
 		for i := 0; i < t.NumField(); i++ {
-			d.walk(e.subf("."+t.Field(i).Name), av.Field(i), bv.Field(i), true)
+			d.walk(e.subf("."+t.Field(i).Name), av.Field(i), bv.Field(i), true, false)
 		}
 	case reflect.Func:
 		if d.config.equalFuncs {
 			break
 		}
 		if !av.IsNil() || !bv.IsNil() {
-			emitPointers(e, av, bv)
+			emitPointers(e, av, bv, wantType)
 		}
 	case reflect.Interface:
-		d.walk(e, av.Elem(), bv.Elem(), true)
+		d.walk(e, av.Elem(), bv.Elem(), true, true)
 	case reflect.Map:
 		if av.IsNil() != bv.IsNil() {
-			emitPointers(e, av, bv)
+			emitPointers(e, av, bv, wantType)
 			break
 		}
 		if av.Pointer() == bv.Pointer() {
@@ -236,24 +236,24 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk bool) {
 				emitf(av.MapIndex(k), bv.MapIndex(k), "(removed)")
 		}
 		for _, k := range both {
-			d.walk(e.subf("[%#v]", k), av.MapIndex(k), bv.MapIndex(k), true)
+			d.walk(e.subf("[%#v]", k), av.MapIndex(k), bv.MapIndex(k), true, false)
 		}
 		for _, k := range bk {
 			e.subf("[%#v]", k).
-				emitf(av.MapIndex(k), bv.MapIndex(k), "(added) %v", formatShort(bv.MapIndex(k)))
+				emitf(av.MapIndex(k), bv.MapIndex(k), "(added) %v", formatShort(bv.MapIndex(k), false))
 		}
 	case reflect.Ptr:
 		if av.Pointer() == bv.Pointer() {
 			break
 		}
 		if av.IsNil() != bv.IsNil() {
-			e.emitf(av, bv, "%v != %v", formatShort(av), formatShort(bv))
+			e.emitf(av, bv, "%v != %v", formatShort(av, wantType), formatShort(bv, wantType))
 			break
 		}
-		d.walk(e, av.Elem(), bv.Elem(), true)
+		d.walk(e, av.Elem(), bv.Elem(), true, wantType)
 	case reflect.Slice:
 		if av.IsNil() != bv.IsNil() {
-			emitPointers(e, av, bv)
+			emitPointers(e, av, bv, wantType)
 			break
 		}
 		if av.Len() == bv.Len() && av.Pointer() == bv.Pointer() {
@@ -266,27 +266,27 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk bool) {
 			return
 		}
 		for i := 0; i < n; i++ {
-			d.walk(e.subf("[%d]", i), av.Index(i), bv.Index(i), true)
+			d.walk(e.subf("[%d]", i), av.Index(i), bv.Index(i), true, false)
 		}
 	case reflect.Bool:
-		eqtest(e, av, bv, av.Bool(), bv.Bool())
+		eqtest(e, av, bv, av.Bool(), bv.Bool(), wantType)
 	case reflect.Int, reflect.Int8, reflect.Int16,
 		reflect.Int32, reflect.Int64:
-		eqtest(e, av, bv, av.Int(), bv.Int())
+		eqtest(e, av, bv, av.Int(), bv.Int(), wantType)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16,
 		reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		eqtest(e, av, bv, av.Uint(), bv.Uint())
+		eqtest(e, av, bv, av.Uint(), bv.Uint(), wantType)
 	case reflect.Float32, reflect.Float64:
-		eqtest(e, av, bv, av.Float(), bv.Float())
+		eqtest(e, av, bv, av.Float(), bv.Float(), wantType)
 	case reflect.Complex64, reflect.Complex128:
-		eqtest(e, av, bv, av.Complex(), bv.Complex())
+		eqtest(e, av, bv, av.Complex(), bv.Complex(), wantType)
 	case reflect.String:
 		if a, b := av.String(), bv.String(); a != b {
 			e.emitf(av, bv, "%q != %q", a, b)
 		}
 	case reflect.Chan, reflect.UnsafePointer:
 		if a, b := av.Pointer(), bv.Pointer(); a != b {
-			emitPointers(e, av, bv)
+			emitPointers(e, av, bv, wantType)
 		}
 	default:
 		panic("diff: unknown reflect.Kind " + t.Kind().String())
@@ -298,18 +298,24 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk bool) {
 	// sure to emit *something*, and then diff the *transformed* values.
 	if haveXform && !e.didEmit() {
 		e.emitf(av, bv, "(transformed values differ)")
-		d.walk(e.subf("->"), ax, bx, false)
+		d.walk(e.subf("->"), ax, bx, false, true)
 	}
 }
 
-func eqtest[V comparable](e emitfer, av, bv reflect.Value, a, b V) {
+func eqtest[V comparable](e emitfer, av, bv reflect.Value, a, b V, wantType bool) {
 	if a != b {
-		e.emitf(av, bv, "%v != %v", a, b)
+		e.emitf(av, bv, "%v != %v",
+			formatShort(av, wantType),
+			formatShort(bv, wantType),
+		)
 	}
 }
 
-func emitPointers(e emitfer, av, bv reflect.Value) {
-	e.emitf(av, bv, "%v != %v", formatShort(av), formatShort(bv))
+func emitPointers(e emitfer, av, bv reflect.Value, wantType bool) {
+	e.emitf(av, bv, "%v != %v",
+		formatShort(av, wantType),
+		formatShort(bv, wantType),
+	)
 }
 
 func keyDiff(av, bv reflect.Value) (ak, both, bk []reflect.Value) {

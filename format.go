@@ -8,18 +8,20 @@ import (
 
 var reflectAny = reflect.TypeOf((*any)(nil)).Elem()
 
-func formatShort(v reflect.Value) fmt.Formatter {
+func formatShort(v reflect.Value, wantType bool) fmt.Formatter {
 	return &formatter{
-		v: v,
+		v:        v,
+		wantType: wantType,
 	}
 }
 
 type formatter struct {
-	v reflect.Value
+	v        reflect.Value
+	wantType bool
 }
 
 func (f *formatter) Format(fs fmt.State, verb rune) {
-	writeValue(fs, f.v, true, true, 1)
+	writeValue(fs, f.v, f.wantType, true, 1)
 }
 
 func writeValue(w io.Writer, v reflect.Value, wantType, short bool, allowDepth int) {
