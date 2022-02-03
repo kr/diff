@@ -139,11 +139,11 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk bool) {
 		return
 	}
 	if !av.IsValid() {
-		e.emitf(av, bv, "nil != %v", bv.Type())
+		e.emitf(av, bv, "nil != %v", formatShort(bv))
 		return
 	}
 	if !bv.IsValid() {
-		e.emitf(av, bv, "%v != nil", av.Type())
+		e.emitf(av, bv, "%v != nil", formatShort(av))
 		return
 	}
 
@@ -240,14 +240,14 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk bool) {
 		}
 		for _, k := range bk {
 			e.subf("[%#v]", k).
-				emitf(av.MapIndex(k), bv.MapIndex(k), "(added) %#v", bv.MapIndex(k))
+				emitf(av.MapIndex(k), bv.MapIndex(k), "(added) %v", formatShort(bv.MapIndex(k)))
 		}
 	case reflect.Ptr:
 		if av.Pointer() == bv.Pointer() {
 			break
 		}
 		if av.IsNil() != bv.IsNil() {
-			e.emitf(av, bv, "%#v != %#v", av, bv)
+			e.emitf(av, bv, "%v != %v", formatShort(av), formatShort(bv))
 			break
 		}
 		d.walk(e, av.Elem(), bv.Elem(), true)
@@ -309,15 +309,7 @@ func eqtest[V comparable](e emitfer, av, bv reflect.Value, a, b V) {
 }
 
 func emitPointers(e emitfer, av, bv reflect.Value) {
-	ap := unsafe.Pointer(av.Pointer())
-	bp := unsafe.Pointer(bv.Pointer())
-	if av.IsNil() {
-		e.emitf(av, bv, "nil != %p", bp)
-	} else if bv.IsNil() {
-		e.emitf(av, bv, "%p != nil", ap)
-	} else {
-		e.emitf(av, bv, "%p != %p", ap, bp)
-	}
+	e.emitf(av, bv, "%v != %v", formatShort(av), formatShort(bv))
 }
 
 func keyDiff(av, bv reflect.Value) (ak, both, bk []reflect.Value) {
