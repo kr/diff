@@ -19,10 +19,10 @@ type formatter struct {
 }
 
 func (f *formatter) Format(fs fmt.State, verb rune) {
-	writeValue(fs, f.v, true, 1)
+	writeValue(fs, f.v, true, true, 1)
 }
 
-func writeValue(w io.Writer, v reflect.Value, short bool, n int) {
+func writeValue(w io.Writer, v reflect.Value, wantType, short bool, allowDepth int) {
 	// TODO(kr): detect recursion during full output (short=false)
 	if !v.IsValid() {
 		io.WriteString(w, "nil") // untyped nil
@@ -30,8 +30,10 @@ func writeValue(w io.Writer, v reflect.Value, short bool, n int) {
 	}
 	switch t := v.Type(); t.Kind() {
 	case reflect.Array:
-		writeType(w, t)
-		if n < 1 {
+		if wantType {
+			writeType(w, t)
+		}
+		if allowDepth < 1 && t.Len() > 0 {
 			io.WriteString(w, "{...}")
 			break
 		}
@@ -44,12 +46,14 @@ func writeValue(w io.Writer, v reflect.Value, short bool, n int) {
 					break
 				}
 			}
-			writeValue(w, v.Index(i), short, n-1)
+			writeValue(w, v.Index(i), false, short, allowDepth-1)
 		}
 		io.WriteString(w, "}")
 	case reflect.Struct:
-		writeType(w, t)
-		if n < 1 {
+		if wantType {
+			writeType(w, t)
+		}
+		if allowDepth < 1 && t.NumField() > 0 {
 			io.WriteString(w, "{...}")
 			break
 		}
@@ -64,24 +68,26 @@ func writeValue(w io.Writer, v reflect.Value, short bool, n int) {
 			}
 			io.WriteString(w, t.Field(i).Name)
 			io.WriteString(w, ":")
-			writeValue(w, v.Field(i), short, n-1)
+			writeValue(w, v.Field(i), false, short, allowDepth-1)
 		}
 		io.WriteString(w, "}")
 	case reflect.Func:
 		if v.IsNil() {
-			writeTypedNil(w, t)
+			writeTypedNil(w, t, wantType)
 			break
 		}
 		fmt.Fprintf(w, "%v {...}", t)
 	case reflect.Interface:
-		writeValue(w, v.Elem(), short, n)
+		writeValue(w, v.Elem(), true, short, allowDepth)
 	case reflect.Map:
 		if v.IsNil() {
-			writeTypedNil(w, t)
+			writeTypedNil(w, t, wantType)
 			break
 		}
-		writeType(w, t)
-		if n < 1 {
+		if wantType {
+			writeType(w, t)
+		}
+		if allowDepth < 1 && v.Len() > 0 {
 			io.WriteString(w, "{...}")
 			break
 		}
@@ -97,25 +103,34 @@ func writeValue(w io.Writer, v reflect.Value, short bool, n int) {
 			}
 			mk := it.Key()
 			mv := v.MapIndex(mk)
-			writeValue(w, mk, short, 0)
+			writeValue(w, mk, false, short, 0)
 			io.WriteString(w, ":")
-			writeValue(w, mv, short, n-1)
+			writeValue(w, mv, false, short, allowDepth-1)
 		}
 		io.WriteString(w, "}")
 	case reflect.Ptr:
 		if v.IsNil() {
-			writeTypedNil(w, t)
+			writeTypedNil(w, t, wantType)
 			break
 		}
-		io.WriteString(w, "&")
-		writeValue(w, v.Elem(), short, n) // note: don't decrement n
+		if wantType || t.Elem().Kind() != reflect.Struct {
+			io.WriteString(w, "&")
+		}
+		if t.Elem().Kind() == reflect.Pointer {
+			// Two or more pointers in a row is confusing,
+			// so show the type to be extra explicit.
+			wantType = true
+		}
+		writeValue(w, v.Elem(), wantType, short, allowDepth) // note: don't decrement allowDepth
 	case reflect.Slice:
 		if v.IsNil() {
-			writeTypedNil(w, t)
+			writeTypedNil(w, t, wantType)
 			break
 		}
-		writeType(w, t)
-		if n < 1 {
+		if wantType {
+			writeType(w, t)
+		}
+		if allowDepth < 1 && v.Len() > 0 {
 			io.WriteString(w, "{...}")
 			break
 		}
@@ -128,27 +143,27 @@ func writeValue(w io.Writer, v reflect.Value, short bool, n int) {
 					break
 				}
 			}
-			writeValue(w, v.Index(i), short, n-1)
+			writeValue(w, v.Index(i), false, short, allowDepth-1)
 		}
 		io.WriteString(w, "}")
 	case reflect.Bool:
-		fmt.Fprintf(w, "%v", v)
+		writeSimple(w, "%v", v, wantType && t.PkgPath() != "")
 	case reflect.Int, reflect.Int8, reflect.Int16,
 		reflect.Int32, reflect.Int64:
-		writeNumber(w, v)
+		writeSimple(w, "%v", v, wantType)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16,
 		reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		writeNumber(w, v)
+		writeSimple(w, "%v", v, wantType)
 	case reflect.Float32, reflect.Float64:
-		writeNumber(w, v)
+		writeSimple(w, "%v", v, wantType)
 	case reflect.Complex64, reflect.Complex128:
-		writeNumber(w, v)
+		writeSimple(w, "%v", v, wantType)
 	case reflect.String:
 		// TODO(kr): abbreviate
-		fmt.Fprintf(w, "%q", v.String())
+		writeSimple(w, "%q", v, wantType && t.PkgPath() != "")
 	case reflect.Chan:
 		if v.IsNil() {
-			writeTypedNil(w, t)
+			writeTypedNil(w, t, wantType)
 			break
 		}
 		writeType(w, t)
@@ -163,15 +178,38 @@ func writeValue(w io.Writer, v reflect.Value, short bool, n int) {
 	}
 }
 
-func writeNumber(w io.Writer, v reflect.Value) {
-	// TODO(kr): print type name here sometimes (depending on context)
-	fmt.Fprintf(w, "%v", v)
+func writeSimple(w io.Writer, verb string, v reflect.Value, showType bool) {
+	if showType {
+		writeType(w, v.Type())
+		io.WriteString(w, "(")
+	}
+	fmt.Fprintf(w, verb, v)
+	if showType {
+		io.WriteString(w, ")")
+	}
 }
 
-func writeTypedNil(w io.Writer, t reflect.Type) {
+func writeTypedNil(w io.Writer, t reflect.Type, showType bool) {
 	// TODO(kr): print type name here sometimes (depending on context)
-	// needParens := t.Name() == ""
+	if showType {
+		needParens := false
+		switch t.Kind() {
+		case reflect.Func, reflect.Pointer, reflect.Chan:
+			needParens = t.Name() == ""
+		}
+		if needParens {
+			io.WriteString(w, "(")
+		}
+		writeType(w, t)
+		if needParens {
+			io.WriteString(w, ")")
+		}
+		io.WriteString(w, "(")
+	}
 	io.WriteString(w, "nil")
+	if showType {
+		io.WriteString(w, ")")
+	}
 }
 
 func writeType(w io.Writer, t reflect.Type) {
@@ -191,11 +229,10 @@ func writeType(w io.Writer, t reflect.Type) {
 		writeType(w, t.Elem())
 	case reflect.Struct:
 		io.WriteString(w, "struct{")
-		n := t.NumField()
-		if n > 0 {
+		if t.NumField() > 0 {
 			io.WriteString(w, " ")
 		}
-		for i := 0; i < n; i++ {
+		for i := 0; i < t.NumField(); i++ {
 			if i > 0 {
 				io.WriteString(w, "; ")
 			}
@@ -204,7 +241,7 @@ func writeType(w io.Writer, t reflect.Type) {
 			io.WriteString(w, " ")
 			writeType(w, field.Type)
 		}
-		if n > 0 {
+		if t.NumField() > 0 {
 			io.WriteString(w, " ")
 		}
 		io.WriteString(w, "}")
