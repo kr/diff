@@ -209,6 +209,26 @@ func TestOneNilPointer(t *testing.T) {
 	}
 }
 
+func TestOneNilInterface(t *testing.T) {
+	t.Logf("a %#v", nil)
+	t.Logf("b %#v", ptr(1))
+	want := "*int"
+	var got string
+	equal := true
+	f := func(format string, arg ...any) {
+		got = fmt.Sprintf(format, arg...)
+		equal = false
+		t.Logf(format, arg...)
+	}
+	diff.Each(f, nil, ptr(1))
+	if equal {
+		t.Fail()
+	}
+	if !strings.Contains(got, want) {
+		t.Errorf("emit = %q, want it to contain %q", got, want)
+	}
+}
+
 func testUnequal(t *testing.T, a, b any) {
 	t.Helper()
 	equal := true
