@@ -246,6 +246,10 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk bool) {
 		if av.Pointer() == bv.Pointer() {
 			break
 		}
+		if av.IsNil() != bv.IsNil() {
+			e.emitf(av, bv, "%#v != %#v", av, bv)
+			break
+		}
 		d.walk(e, av.Elem(), bv.Elem(), true)
 	case reflect.Slice:
 		if av.IsNil() != bv.IsNil() {
