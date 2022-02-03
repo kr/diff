@@ -3,7 +3,6 @@ package diff_test
 import (
 	"fmt"
 	"math"
-	"strings"
 	"testing"
 	"unsafe"
 
@@ -84,10 +83,13 @@ func TestUnequal(t *testing.T) {
 		{struct{ V any }{0}, struct{ V any }{1}},
 		{struct{ v any }{0}, struct{ v any }{1}},
 		{(map[int]int)(nil), map[int]int{}},
+		{(map[int]int)(nil), map[int]int{0: 0}},
+		{(map[int]int)(nil), map[int]int{0: 0, 1: 1}},
 		{map[int]int{}, map[int]int{0: 0}},
 		{map[int]int{0: 0}, map[int]int{}},
 		{map[int]int{0: 0}, map[int]int{0: 1}},
 		{map[int]float64{0: NaN}, map[int]float64{0: NaN}},
+		{nil, ptr(0)},
 		{ptr(0), ptr(1)},
 		{ptr(NaN), ptr(NaN)},
 		{[]int(nil), []int{}},
@@ -184,48 +186,6 @@ func TestPicky(t *testing.T) {
 	diff.Each(f, a, b, diff.Picky)
 	if equal {
 		t.Fail()
-	}
-}
-
-func TestOneNilPointer(t *testing.T) {
-	var a, b *int
-	b = ptr(1)
-	t.Logf("a %#v", a)
-	t.Logf("b %#v", b)
-	want := "*int"
-	var got string
-	equal := true
-	f := func(format string, arg ...any) {
-		got = fmt.Sprintf(format, arg...)
-		equal = false
-		t.Logf(format, arg...)
-	}
-	diff.Each(f, a, b)
-	if equal {
-		t.Fail()
-	}
-	if !strings.Contains(got, want) {
-		t.Errorf("emit = %q, want it to contain %q", got, want)
-	}
-}
-
-func TestOneNilInterface(t *testing.T) {
-	t.Logf("a %#v", nil)
-	t.Logf("b %#v", ptr(1))
-	want := "*int"
-	var got string
-	equal := true
-	f := func(format string, arg ...any) {
-		got = fmt.Sprintf(format, arg...)
-		equal = false
-		t.Logf(format, arg...)
-	}
-	diff.Each(f, nil, ptr(1))
-	if equal {
-		t.Fail()
-	}
-	if !strings.Contains(got, want) {
-		t.Errorf("emit = %q, want it to contain %q", got, want)
 	}
 }
 
