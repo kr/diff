@@ -250,14 +250,20 @@ func writeType(w io.Writer, t reflect.Type) {
 
 func writeFunc(w io.Writer, f reflect.Type) {
 	io.WriteString(w, "(")
-	for i := 0; i < f.NumIn(); i++ {
+	n := f.NumIn()
+	for i := 0; i < n; i++ {
 		if i > 0 {
 			io.WriteString(w, ", ")
 		}
-		writeType(w, f.In(i))
+		if i == n-1 && f.IsVariadic() {
+			io.WriteString(w, "...")
+			writeType(w, f.In(i).Elem())
+		} else {
+			writeType(w, f.In(i))
+		}
 	}
 	io.WriteString(w, ")")
-	n := f.NumOut()
+	n = f.NumOut()
 	if n > 0 {
 		io.WriteString(w, " ")
 	}

@@ -72,6 +72,7 @@ func TestWriteType(t *testing.T) {
 	testWriteType[func()](t, "func()")
 	testWriteType[func(any)](t, "func(any)")
 	testWriteType[func(any, any)](t, "func(any, any)")
+	testWriteType[func(int, ...bool)](t, "func(int, ...bool)")
 	testWriteType[func() any](t, "func() any")
 	testWriteType[func() (any, any)](t, "func() (any, any)")
 	testWriteType[func(x any) (y any)](t, "func(any) any")
