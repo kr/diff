@@ -9,6 +9,47 @@ import (
 	"unsafe"
 )
 
+func TestWriteShortUnknownContext(t *testing.T) {
+	var any0 any = 0
+	var any1 any = 1
+	cases := []struct {
+		a, b any
+		want string
+	}{
+		{nil, 1, `nil != int(1)`},
+		{[1]int{0}, [1]int{1}, `[0]: 0 != 1`},
+		{[1]any{0}, [1]any{1}, `[0]: int(0) != int(1)`},
+		{struct{ v int }{0}, struct{ v int }{1}, `.v: 0 != 1`},
+		{struct{ v any }{0}, struct{ v any }{1}, `.v: int(0) != int(1)`},
+		{map[int]int{1: 0}, map[int]int{1: 1}, `[1]: 0 != 1`},
+		{map[int]any{1: 0}, map[int]any{1: 1}, `[1]: int(0) != int(1)`},
+		{map[int]int{}, map[int]int{1: 1}, `[1]: (added) 1`},
+		{map[int]any{}, map[int]any{1: 1}, `[1]: (added) int(1)`},
+		{[1]*int{nil}, [1]*int{ptr(1)}, `[0]: nil != &1`},
+		{[1]*int{ptr(0)}, [1]*int{ptr(1)}, `[0]: 0 != 1`},
+		{[1]*any{nil}, [1]*any{&any1}, `[0]: nil != &int(1)`},
+		{[1]*any{&any0}, [1]*any{&any1}, `[0]: int(0) != int(1)`},
+		{[]int{0}, []int{1}, `[0]: 0 != 1`},
+		{[]any{0}, []any{1}, `[0]: int(0) != int(1)`},
+		{[]any{(*int)(nil)}, []any{ptr(1)}, `[0]: (*int)(nil) != &int(1)`},
+	}
+
+	for i, tt := range cases {
+		t.Run(fmt.Sprint(i, ":", tt), func(t *testing.T) {
+			got := ""
+			sink := func(format string, arg ...any) {
+				t.Helper()
+				got = fmt.Sprintf(format, arg...)
+			}
+			Each(sink, tt.a, tt.b)
+			t.Logf("got: %s", got)
+			if got != tt.want {
+				t.Errorf("Each(%#v, %#v) = %#q, want %#q", tt.a, tt.b, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestWriteShort(t *testing.T) {
 	type Bool bool
 	type Int int
@@ -156,7 +197,7 @@ func TestWriteShort(t *testing.T) {
 	for i, tt := range cases {
 		t.Run(fmt.Sprint(i, ":", tt), func(t *testing.T) {
 			rv := reflect.ValueOf(tt.v)
-			got := fmt.Sprint(formatShort(rv))
+			got := fmt.Sprint(formatShort(rv, true))
 			t.Logf("got: %s", got)
 			if got != tt.want {
 				t.Errorf("formatShort(%#v) = %#q, want %#q", tt.v, got, tt.want)
