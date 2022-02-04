@@ -195,7 +195,7 @@ func TestPicky(t *testing.T) {
 func TestLog(t *testing.T) {
 	var buf bytes.Buffer
 	l := log.New(&buf, "", log.Lshortfile)
-	diff.Log(l, 0, 1)
+	diff.Log(0, 1, diff.Logger(l))
 	got := strings.TrimSpace(buf.String())
 	want := "diff_test.go:"
 	if !strings.HasPrefix(got, want) {

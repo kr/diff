@@ -17,29 +17,34 @@ import (
 // See Default for a complete list of default options.
 // Values in opt apply in addition to (and override) the defaults.
 func Each(f func(format string, arg ...any), a, b any, opt ...Option) {
-	each(func() {}, f, a, b, opt...)
+	d := newDiffer(func() {}, f, opt...)
+	d.each(a, b)
 }
 
 // Log compares values a and b, calling out.Output for each difference
 // it finds.
 // By default, its conditions for equality are similar to reflect.DeepEqual.
 //
-//   diff.Log(log.Default(), a, b)
+//   diff.Log(a, b)
+//   diff.Log(a, b, diff.Logger(log.New(...)))
 //
-// Log provides a calldepth argument to out.Output to show the file
+// Log provides a calldepth argument to its logger to show the file
 // and line number of the call to Log. This is usually preferable to
-// passing log.Printf to Each.
+// passing log.Printf to Each. The logger object can be set using
+// Logger.
 //
 // The behavior can be adjusted by supplying Option values.
 // See Default for a complete list of default options.
 // Values in opt apply in addition to (and override) the defaults.
-func Log(out Outputter, a, b any, opt ...Option) {
+func Log(a, b any, opt ...Option) {
 	depth := stackDepth()
+	var d *differ
 	f := func(format string, arg ...any) {
 		dd := stackDepth() - depth
-		out.Output(dd+2, fmt.Sprintf(format, arg...))
+		d.config.output.Output(dd+2, fmt.Sprintf(format, arg...))
 	}
-	each(func() {}, f, a, b, opt...)
+	d = newDiffer(func() {}, f, opt...)
+	d.each(a, b)
 }
 
 // Test compares values a and b, calling f for each difference it finds.
@@ -59,29 +64,14 @@ func Log(out Outputter, a, b any, opt ...Option) {
 // Values in opt apply in addition to (and override) the defaults.
 func Test(h Helperer, f func(format string, arg ...any), a, b any, opt ...Option) {
 	h.Helper()
-	each(h.Helper, f, a, b, opt...)
+	d := newDiffer(h.Helper, f, opt...)
+	d.each(a, b)
 }
 
-func each(h func(), f func(format string, arg ...any), a, b any, opt ...Option) {
-	h()
-	d := &differ{
-		aSeen: map[visit]visit{},
-		bSeen: map[visit]visit{},
-	}
-	d.config.helper = h
-	d.config.xform = map[reflect.Type]reflect.Value{}
-	d.config.format = map[reflect.Type]reflect.Value{}
-	OptionList(defaultOpt, OptionList(opt...)).apply(&d.config)
-	e := &printEmitter{sink: f, level: d.config.level, helper: h}
-	d.walk(e, reflect.ValueOf(a), reflect.ValueOf(b), true, true)
-}
-
+// Helperer marks the caller as a helper function.
+// It is satisfied by *testing.T and *testing.B.
 type Helperer interface {
 	Helper()
-}
-
-type Outputter interface {
-	Output(calldepth int, s string) error
 }
 
 type differ struct {
@@ -91,6 +81,8 @@ type differ struct {
 }
 
 type config struct {
+	sink func(format string, a ...any)
+
 	level level // verbosity
 
 	// equalFuncs treats non-nil functions as equal.
@@ -107,6 +99,7 @@ type config struct {
 	format map[reflect.Type]reflect.Value
 
 	helper func()
+	output Outputter
 }
 
 type visit struct {
@@ -121,45 +114,43 @@ type emitfer interface {
 }
 
 type printEmitter struct {
-	level  level
-	helper func()
+	config config // not pointer, printEmitters have different configs
 	path   []string
 	did    bool
-	sink   func(format string, a ...any)
 }
 
 func (e *printEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
-	e.helper()
+	e.config.helper()
 	e.did = true
 	var p string
 	if len(e.path) > 0 {
 		p = strings.Join(e.path, "") + ": "
 	}
-	switch e.level {
+	switch e.config.level {
 	case auto:
 		arg = append([]any{p}, arg...)
-		e.sink("%s"+format+"\n", arg...)
+		e.config.sink("%s"+format+"\n", arg...)
 	case pathOnly:
-		e.sink("%s\n", strings.Join(e.path, ""))
+		e.config.sink("%s\n", strings.Join(e.path, ""))
 	case full:
-		e.sink("%s%#v != %#v\n", p, av, bv)
+		e.config.sink("%s%#v != %#v\n", p, av, bv)
 	default:
 		panic("diff: bad verbose level")
 	}
 }
 
 func (e *printEmitter) subf(format string, arg ...any) emitfer {
-	return &printEmitter{
-		level:  e.level,
-		helper: e.helper,
+	pe := &printEmitter{
+		config: e.config,
 		path:   append(e.path, fmt.Sprintf(format, arg...)),
 		did:    false,
-		sink: func(format string, a ...any) {
-			e.helper()
-			e.did = true
-			e.sink(format, a...)
-		},
 	}
+	pe.config.sink = func(format string, a ...any) {
+		e.config.helper()
+		e.did = true
+		e.config.sink(format, a...)
+	}
+	return pe
 }
 
 func (e *printEmitter) didEmit() bool {
@@ -184,6 +175,25 @@ func (e *countEmitter) didEmit() bool {
 
 func reflectApply(f reflect.Value, v ...reflect.Value) reflect.Value {
 	return f.Call(v)[0]
+}
+
+func newDiffer(h func(), f func(format string, arg ...any), opt ...Option) *differ {
+	d := &differ{
+		aSeen: map[visit]visit{},
+		bSeen: map[visit]visit{},
+	}
+	d.config.sink = f
+	d.config.helper = h
+	d.config.xform = map[reflect.Type]reflect.Value{}
+	d.config.format = map[reflect.Type]reflect.Value{}
+	OptionList(defaultOpt, OptionList(opt...)).apply(&d.config)
+	return d
+}
+
+func (d *differ) each(a, b any) {
+	d.config.helper()
+	e := &printEmitter{config: d.config}
+	d.walk(e, reflect.ValueOf(a), reflect.ValueOf(b), true, true)
 }
 
 func (d *differ) equal(av, bv reflect.Value) bool {
