@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strings"
 	"testing"
 	"unsafe"
 )
@@ -50,6 +51,42 @@ func TestWriteShortUnknownContext(t *testing.T) {
 	}
 }
 
+func TestWriteShortSpecial(t *testing.T) {
+	// This test is for values that can't be hard coded because
+	// they are liable to change every time.
+	cases := []struct {
+		v    any
+		want []string
+	}{
+		{map[int]int{0: 0, 1: 1}, []string{"map[int]int{", ":", ", ...}"}},
+		{make(chan int), []string{"(chan int)(0x", ")"}},
+		{unsafe.Pointer(new(int)), []string{"unsafe.Pointer(0x", ")"}},
+
+		// Elide concrete type when it's known from context.
+		//  * nilable types
+		{[1]chan int{make(chan int)}, []string{"[1]chan int{(chan int)(0x", ")}"}},
+
+		// Show concrete type when it's not known from context.
+		//  * nilable types
+		{[1]any{make(chan int)}, []string{"[1]any{(chan int)(0x", ")}"}},
+	}
+
+	for i, tt := range cases {
+		t.Run(fmt.Sprint(i, ":", tt), func(t *testing.T) {
+			rv := reflect.ValueOf(tt.v)
+			got := fmt.Sprint(formatShort(rv, true))
+			t.Logf("got: %s", got)
+			for _, want := range tt.want {
+				i := strings.Index(got, want)
+				if i < 0 {
+					t.Fatalf("formatShort(%#v) remaining: %#q, want %#q", tt.v, got, want)
+				}
+				got = got[i+len(want):]
+			}
+		})
+	}
+}
+
 func TestWriteShort(t *testing.T) {
 	type Bool bool
 	type Int int
@@ -73,7 +110,6 @@ func TestWriteShort(t *testing.T) {
 		{map[int]int(nil), "map[int]int(nil)"},
 		{map[int]int{}, "map[int]int{}"},
 		{map[int]int{0: 0}, "map[int]int{0:0}"},
-		{map[int]int{0: 0, 1: 1}, "map[int]int{0:0, ...}"},
 		{(*int)(nil), "(*int)(nil)"},
 		{ptr(0), "&int(0)"},
 		{ptr(ptr(0)), "&&int(0)"},
@@ -87,9 +123,7 @@ func TestWriteShort(t *testing.T) {
 		{"a", `"a"`},
 		{(chan int)(nil), "(chan int)(nil)"},
 		{Chan(nil), "diff.Chan(nil)"},
-		{make(chan int), "chan int"},
-		{unsafe.Pointer(new(int)), "unsafe.Pointer(...)"},
-		{unsafe.Pointer(uintptr(0)), "unsafe.Pointer(0)"},
+		{unsafe.Pointer(uintptr(0)), "unsafe.Pointer(0x0)"},
 
 		// Truncate nested values.
 		{T{V: [1]int{0}}, "diff.T{V:[1]int{...}}"},
@@ -120,7 +154,6 @@ func TestWriteShort(t *testing.T) {
 		{[1]**Empty{ptr(&Empty{})}, "[1]**diff.Empty{&&diff.Empty{}}"}, // 2+ ptrs, don't elide
 		{[1][]int{{}}, "[1][]int{{}}"},
 		{[1]Slice{{}}, "[1]diff.Slice{{}}"},
-		{[1]chan int{make(chan int)}, "[1]chan int{chan int}"},
 
 		// Elide concrete type when it's known from context.
 		//  * nil
@@ -155,7 +188,6 @@ func TestWriteShort(t *testing.T) {
 		{[1]any{ptr((*int)(nil))}, "[1]any{&(*int)(nil)}"},
 		{[1]any{[]int{}}, "[1]any{[]int{}}"},
 		{[1]any{Slice{}}, "[1]any{diff.Slice{}}"},
-		{[1]any{make(chan int)}, "[1]any{chan int}"},
 
 		// Show concrete type when it's not known from context.
 		//  * nil
