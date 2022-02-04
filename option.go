@@ -2,6 +2,7 @@ package diff
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"reflect"
 	"time"
@@ -41,6 +42,7 @@ var (
 		EmitAuto,
 		TimeInUTC,
 		TimeDelta,
+		Logger(log.Default()),
 	)
 	defaultOpt = Default // actual value that cannot be changed
 
@@ -158,5 +160,19 @@ func FormatRemove[T any]() Option {
 	return Option{func(c *config) {
 		t := reflect.TypeOf((*T)(nil)).Elem()
 		delete(c.format, t)
+	}}
+}
+
+// Outputter accepts log output.
+// It is satisfied by *log.Logger.
+type Outputter interface {
+	Output(calldepth int, s string) error
+}
+
+// Logger sets the output for Log to the given object.
+// It has no effect on Each or Test.
+func Logger(out Outputter) Option {
+	return Option{func(c *config) {
+		c.output = out
 	}}
 }
