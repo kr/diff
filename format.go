@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"unsafe"
 )
 
 var reflectAny = reflect.TypeOf((*any)(nil)).Elem()
@@ -168,13 +169,12 @@ func writeValue(w io.Writer, v reflect.Value, wantType, short bool, allowDepth i
 			writeTypedNil(w, t, wantType)
 			break
 		}
+		io.WriteString(w, "(")
 		writeType(w, t)
+		io.WriteString(w, ")")
+		fmt.Fprintf(w, "(%p)", unsafe.Pointer(v.Pointer()))
 	case reflect.UnsafePointer:
-		if v.Pointer() == 0 {
-			io.WriteString(w, "unsafe.Pointer(0)")
-		} else {
-			io.WriteString(w, "unsafe.Pointer(...)")
-		}
+		fmt.Fprintf(w, "unsafe.Pointer(%p)", unsafe.Pointer(v.Pointer()))
 	default:
 		w.Write([]byte("(unknown kind)"))
 	}
