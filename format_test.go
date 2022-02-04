@@ -40,12 +40,12 @@ func TestWriteShortUnknownContext(t *testing.T) {
 			got := ""
 			sink := func(format string, arg ...any) {
 				t.Helper()
-				got = fmt.Sprintf(format, arg...)
+				got = strings.TrimSpace(fmt.Sprintf(format, arg...))
 			}
-			Each(sink, tt.a, tt.b)
+			Test(t, sink, tt.a, tt.b)
 			t.Logf("got: %s", got)
 			if got != tt.want {
-				t.Errorf("Each(%#v, %#v) = %#q, want %#q", tt.a, tt.b, got, tt.want)
+				t.Errorf("Test(%#v, %#v) = %#q, want %#q", tt.a, tt.b, got, tt.want)
 			}
 		})
 	}
