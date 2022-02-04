@@ -1,8 +1,11 @@
 package diff_test
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 	"math"
+	"strings"
 	"testing"
 	"unsafe"
 
@@ -60,16 +63,16 @@ func TestEqual(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(fmt.Sprintf("%v", tt), func(t *testing.T) {
-			diff.Each(t.Errorf, tt[0], tt[1],
+			diff.Test(t, t.Errorf, tt[0], tt[1],
 				diff.EqualFuncs(false),
 			)
 		})
 		t.Run(fmt.Sprintf("unexported %v", tt), func(t *testing.T) {
-			diff.Each(t.Errorf,
+			diff.Test(t, t.Errorf,
 				struct{ v any }{tt[0]},
 				struct{ v any }{tt[1]},
-				diff.EqualFuncs(false),
-			)
+				diff.EqualFuncs(false))
+
 		})
 	}
 }
@@ -141,7 +144,7 @@ func TestCycle(t *testing.T) {
 		a.P = a
 		b := &T{N: 1, P: nil}
 		b.P = b
-		diff.Each(t.Errorf, a, b)
+		diff.Test(t, t.Errorf, a, b)
 	})
 
 	t.Run("unequal and even", func(t *testing.T) {
@@ -183,9 +186,20 @@ func TestPicky(t *testing.T) {
 		equal = false
 		t.Logf(format, arg...)
 	}
-	diff.Each(f, a, b, diff.Picky)
+	diff.Test(t, f, a, b, diff.Picky)
 	if equal {
 		t.Fail()
+	}
+}
+
+func TestLog(t *testing.T) {
+	var buf bytes.Buffer
+	l := log.New(&buf, "", log.Lshortfile)
+	diff.Log(l, 0, 1)
+	got := strings.TrimSpace(buf.String())
+	want := "diff_test.go:"
+	if !strings.HasPrefix(got, want) {
+		t.Errorf("diff.Log() = %q, want prefix %q", got, want)
 	}
 }
 
@@ -197,9 +211,9 @@ func testUnequal(t *testing.T, a, b any) {
 		equal = false
 		t.Logf(format, arg...)
 	}
-	diff.Each(sink, a, b,
-		diff.EqualFuncs(false),
-	)
+	diff.Test(t, sink, a, b,
+		diff.EqualFuncs(false))
+
 	if equal {
 		t.Fail()
 	}

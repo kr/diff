@@ -3,6 +3,7 @@ package diff_test
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,7 +28,7 @@ func TestEqualNaN(t *testing.T) {
 			f := func(format string, arg ...any) {
 				got = true
 			}
-			diff.Each(f, tt.a, tt.b, tt.opt)
+			diff.Test(t, f, tt.a, tt.b, tt.opt)
 			if got != tt.wantDiff {
 				t.Errorf("diff = %v, want %v", got, tt.wantDiff)
 			}
@@ -47,11 +48,11 @@ func TestTimeFormat(t *testing.T) {
 	sink := func(format string, arg ...any) {
 		t.Helper()
 		t.Logf(format, arg...)
-		got = fmt.Sprintf(format, arg...)
+		got = strings.TrimSpace(fmt.Sprintf(format, arg...))
 	}
-	diff.Each(sink, t0, t1,
-		diff.TimeDelta,
-	)
+	diff.Test(t, sink, t0, t1,
+		diff.TimeDelta)
+
 	if got != want {
 		t.Fatalf("diff = %q, want %q", got, want)
 	}

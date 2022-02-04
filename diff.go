@@ -3,6 +3,7 @@ package diff
 import (
 	"fmt"
 	"reflect"
+	"runtime"
 	"strings"
 	"unsafe"
 )
@@ -10,19 +11,77 @@ import (
 // Each compares values a and b, calling f for each difference it finds.
 // By default, its conditions for equality are similar to reflect.DeepEqual.
 //
+//   diff.Each(fmt.Printf, a, b)
+//
 // The behavior can be adjusted by supplying Option values.
 // See Default for a complete list of default options.
 // Values in opt apply in addition to (and override) the defaults.
 func Each(f func(format string, arg ...any), a, b any, opt ...Option) {
+	each(func() {}, f, a, b, opt...)
+}
+
+// Log compares values a and b, calling out.Output for each difference
+// it finds.
+// By default, its conditions for equality are similar to reflect.DeepEqual.
+//
+//   diff.Log(log.Default(), a, b)
+//
+// Log provides a calldepth argument to out.Output to show the file
+// and line number of the call to Log. This is usually preferable to
+// passing log.Printf to Each.
+//
+// The behavior can be adjusted by supplying Option values.
+// See Default for a complete list of default options.
+// Values in opt apply in addition to (and override) the defaults.
+func Log(out Outputter, a, b any, opt ...Option) {
+	depth := stackDepth()
+	f := func(format string, arg ...any) {
+		dd := stackDepth() - depth
+		out.Output(dd+2, fmt.Sprintf(format, arg...))
+	}
+	each(func() {}, f, a, b, opt...)
+}
+
+// Test compares values a and b, calling f for each difference it finds.
+// By default, its conditions for equality are similar to reflect.DeepEqual.
+//
+//   diff.Test(t, t.Errorf, a, b)
+//   diff.Test(t, t.Fatalf, a, b)
+//   diff.Test(t, t.Logf, a, b)
+//
+// Test also calls h.Helper() at the top of every internal function.
+// Note that *testing.T and *testing.B satisfy this interface.
+// This makes test output show the file and line number of the call to
+// Test.
+//
+// The behavior can be adjusted by supplying Option values.
+// See Default for a complete list of default options.
+// Values in opt apply in addition to (and override) the defaults.
+func Test(h Helperer, f func(format string, arg ...any), a, b any, opt ...Option) {
+	h.Helper()
+	each(h.Helper, f, a, b, opt...)
+}
+
+func each(h func(), f func(format string, arg ...any), a, b any, opt ...Option) {
+	h()
 	d := &differ{
 		aSeen: map[visit]visit{},
 		bSeen: map[visit]visit{},
 	}
+	d.config.helper = h
 	d.config.xform = map[reflect.Type]reflect.Value{}
 	d.config.format = map[reflect.Type]reflect.Value{}
 	OptionList(defaultOpt, OptionList(opt...)).apply(&d.config)
-	e := &printEmitter{sink: f, level: d.config.level}
+	e := &printEmitter{sink: f, level: d.config.level, helper: h}
 	d.walk(e, reflect.ValueOf(a), reflect.ValueOf(b), true, true)
+}
+
+type Helperer interface {
+	Helper()
+}
+
+type Outputter interface {
+	Output(calldepth int, s string) error
 }
 
 type differ struct {
@@ -46,6 +105,8 @@ type config struct {
 	xform map[reflect.Type]reflect.Value
 
 	format map[reflect.Type]reflect.Value
+
+	helper func()
 }
 
 type visit struct {
@@ -60,13 +121,15 @@ type emitfer interface {
 }
 
 type printEmitter struct {
-	level level
-	path  []string
-	did   bool
-	sink  func(format string, a ...any)
+	level  level
+	helper func()
+	path   []string
+	did    bool
+	sink   func(format string, a ...any)
 }
 
 func (e *printEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
+	e.helper()
 	e.did = true
 	var p string
 	if len(e.path) > 0 {
@@ -75,11 +138,11 @@ func (e *printEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
 	switch e.level {
 	case auto:
 		arg = append([]any{p}, arg...)
-		e.sink("%s"+format, arg...)
+		e.sink("%s"+format+"\n", arg...)
 	case pathOnly:
-		e.sink("%s", strings.Join(e.path, ""))
+		e.sink("%s\n", strings.Join(e.path, ""))
 	case full:
-		e.sink("%s%#v != %#v", p, av, bv)
+		e.sink("%s%#v != %#v\n", p, av, bv)
 	default:
 		panic("diff: bad verbose level")
 	}
@@ -87,10 +150,12 @@ func (e *printEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
 
 func (e *printEmitter) subf(format string, arg ...any) emitfer {
 	return &printEmitter{
-		level: e.level,
-		path:  append(e.path, fmt.Sprintf(format, arg...)),
-		did:   false,
+		level:  e.level,
+		helper: e.helper,
+		path:   append(e.path, fmt.Sprintf(format, arg...)),
+		did:    false,
 		sink: func(format string, a ...any) {
+			e.helper()
 			e.did = true
 			e.sink(format, a...)
 		},
@@ -135,6 +200,7 @@ func (d *differ) equal(av, bv reflect.Value) bool {
 }
 
 func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
+	d.config.helper()
 	if !av.IsValid() && !bv.IsValid() {
 		return
 	}
@@ -218,13 +284,13 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 			break
 		}
 		if !av.IsNil() || !bv.IsNil() {
-			emitPointers(e, av, bv, wantType)
+			d.emitPointers(e, av, bv, wantType)
 		}
 	case reflect.Interface:
 		d.walk(e, av.Elem(), bv.Elem(), true, true)
 	case reflect.Map:
 		if av.IsNil() != bv.IsNil() {
-			emitPointers(e, av, bv, wantType)
+			d.emitPointers(e, av, bv, wantType)
 			break
 		}
 		if av.Pointer() == bv.Pointer() {
@@ -253,7 +319,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 		d.walk(e, av.Elem(), bv.Elem(), true, wantType)
 	case reflect.Slice:
 		if av.IsNil() != bv.IsNil() {
-			emitPointers(e, av, bv, wantType)
+			d.emitPointers(e, av, bv, wantType)
 			break
 		}
 		if av.Len() == bv.Len() && av.Pointer() == bv.Pointer() {
@@ -269,24 +335,24 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 			d.walk(e.subf("[%d]", i), av.Index(i), bv.Index(i), true, false)
 		}
 	case reflect.Bool:
-		eqtest(e, av, bv, av.Bool(), bv.Bool(), wantType)
+		d.eqtest(e, av, bv, av.Bool(), bv.Bool(), wantType)
 	case reflect.Int, reflect.Int8, reflect.Int16,
 		reflect.Int32, reflect.Int64:
-		eqtest(e, av, bv, av.Int(), bv.Int(), wantType)
+		d.eqtest(e, av, bv, av.Int(), bv.Int(), wantType)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16,
 		reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		eqtest(e, av, bv, av.Uint(), bv.Uint(), wantType)
+		d.eqtest(e, av, bv, av.Uint(), bv.Uint(), wantType)
 	case reflect.Float32, reflect.Float64:
-		eqtest(e, av, bv, av.Float(), bv.Float(), wantType)
+		d.eqtest(e, av, bv, av.Float(), bv.Float(), wantType)
 	case reflect.Complex64, reflect.Complex128:
-		eqtest(e, av, bv, av.Complex(), bv.Complex(), wantType)
+		d.eqtest(e, av, bv, av.Complex(), bv.Complex(), wantType)
 	case reflect.String:
 		if a, b := av.String(), bv.String(); a != b {
 			e.emitf(av, bv, "%q != %q", a, b)
 		}
 	case reflect.Chan, reflect.UnsafePointer:
 		if a, b := av.Pointer(), bv.Pointer(); a != b {
-			emitPointers(e, av, bv, wantType)
+			d.emitPointers(e, av, bv, wantType)
 		}
 	default:
 		panic("diff: unknown reflect.Kind " + t.Kind().String())
@@ -302,7 +368,8 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	}
 }
 
-func eqtest[V comparable](e emitfer, av, bv reflect.Value, a, b V, wantType bool) {
+func (d *differ) eqtest(e emitfer, av, bv reflect.Value, a, b any, wantType bool) {
+	d.config.helper()
 	if a != b {
 		e.emitf(av, bv, "%v != %v",
 			formatShort(av, wantType),
@@ -311,7 +378,8 @@ func eqtest[V comparable](e emitfer, av, bv reflect.Value, a, b V, wantType bool
 	}
 }
 
-func emitPointers(e emitfer, av, bv reflect.Value, wantType bool) {
+func (d *differ) emitPointers(e emitfer, av, bv reflect.Value, wantType bool) {
+	d.config.helper()
 	e.emitf(av, bv, "%v != %v",
 		formatShort(av, wantType),
 		formatShort(bv, wantType),
@@ -334,4 +402,9 @@ func keyDiff(av, bv reflect.Value) (ak, both, bk []reflect.Value) {
 		}
 	}
 	return ak, both, bk
+}
+
+func stackDepth() int {
+	pc := make([]uintptr, 1000)
+	return runtime.Callers(0, pc)
 }
