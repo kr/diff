@@ -277,7 +277,6 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	// but with a couple of configuration options that modify
 	// the behavior, such as:
 	//   * We allow the client to ignore functions.
-	//   * We allow the client to ignore unexported fields.
 	// See "go doc reflect DeepEqual" for more.
 	switch t.Kind() {
 	case reflect.Array:
