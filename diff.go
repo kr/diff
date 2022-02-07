@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -109,7 +110,7 @@ type visit struct {
 
 type emitfer interface {
 	emitf(av, bv reflect.Value, format string, arg ...any)
-	subf(format string, arg ...any) emitfer
+	subf(t reflect.Type, format string, arg ...any) emitfer
 	didEmit() bool
 }
 
@@ -139,10 +140,16 @@ func (e *printEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
 	}
 }
 
-func (e *printEmitter) subf(format string, arg ...any) emitfer {
+func (e *printEmitter) subf(t reflect.Type, format string, arg ...any) emitfer {
+	path := e.path
+	if len(e.path) < 1 {
+		var buf bytes.Buffer
+		writeType(&buf, t)
+		path = []string{buf.String()}
+	}
 	pe := &printEmitter{
 		config: e.config,
-		path:   append(e.path, fmt.Sprintf(format, arg...)),
+		path:   append(path, fmt.Sprintf(format, arg...)),
 		did:    false,
 	}
 	pe.config.sink = func(format string, a ...any) {
@@ -165,7 +172,7 @@ func (e *countEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
 	e.n++
 }
 
-func (e *countEmitter) subf(format string, arg ...any) emitfer {
+func (e *countEmitter) subf(t reflect.Type, format string, arg ...any) emitfer {
 	return e
 }
 
@@ -282,11 +289,11 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	case reflect.Array:
 		// TODO(kr): fancy diff (histogram, myers)
 		for i := 0; i < t.Len(); i++ {
-			d.walk(e.subf("[%d]", i), av.Index(i), bv.Index(i), true, false)
+			d.walk(e.subf(t, "[%d]", i), av.Index(i), bv.Index(i), true, false)
 		}
 	case reflect.Struct:
 		for i := 0; i < t.NumField(); i++ {
-			d.walk(e.subf("."+t.Field(i).Name), av.Field(i), bv.Field(i), true, false)
+			d.walk(e.subf(t, "."+t.Field(i).Name), av.Field(i), bv.Field(i), true, false)
 		}
 	case reflect.Func:
 		if d.config.equalFuncs {
@@ -307,14 +314,14 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 		}
 		ak, both, bk := keyDiff(av, bv)
 		for _, k := range ak {
-			e.subf("[%#v]", k).
+			e.subf(t, "[%#v]", k).
 				emitf(av.MapIndex(k), bv.MapIndex(k), "(removed)")
 		}
 		for _, k := range both {
-			d.walk(e.subf("[%#v]", k), av.MapIndex(k), bv.MapIndex(k), true, false)
+			d.walk(e.subf(t, "[%#v]", k), av.MapIndex(k), bv.MapIndex(k), true, false)
 		}
 		for _, k := range bk {
-			e.subf("[%#v]", k).
+			e.subf(t, "[%#v]", k).
 				emitf(av.MapIndex(k), bv.MapIndex(k), "(added) %v", formatShort(bv.MapIndex(k), false))
 		}
 	case reflect.Ptr:
@@ -341,7 +348,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 			return
 		}
 		for i := 0; i < n; i++ {
-			d.walk(e.subf("[%d]", i), av.Index(i), bv.Index(i), true, false)
+			d.walk(e.subf(t, "[%d]", i), av.Index(i), bv.Index(i), true, false)
 		}
 	case reflect.Bool:
 		d.eqtest(e, av, bv, av.Bool(), bv.Bool(), wantType)
@@ -373,7 +380,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	// sure to emit *something*, and then diff the *transformed* values.
 	if haveXform && !e.didEmit() {
 		e.emitf(av, bv, "(transformed values differ)")
-		d.walk(e.subf("->"), ax, bx, false, true)
+		d.walk(e.subf(t, "->"), ax, bx, false, true)
 	}
 }
 
