@@ -177,6 +177,21 @@ func TestCycle(t *testing.T) {
 	})
 }
 
+func TestPath(t *testing.T) {
+	type T struct { N int }
+	a := &T{N: 1}
+	b := &T{N: 2}
+	var got string
+	f := func(format string, arg ...any) {
+		got = strings.TrimSpace(fmt.Sprintf(format, arg...))
+	}
+	diff.Each(f, a, b, diff.EmitPathOnly)
+	want := `diff_test.T.N`
+	if got != want {
+		t.Errorf("diff path = %q, want %q", got, want)
+	}
+}
+
 func TestPicky(t *testing.T) {
 	type T struct{ v struct{ n int } }
 	var a, b T
