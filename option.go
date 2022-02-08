@@ -40,7 +40,7 @@ var (
 	// modifying it has no effect on the default behavior.)
 	Default Option = OptionList(
 		EmitAuto,
-		TimeInUTC,
+		TimeEqual,
 		TimeDelta,
 		Logger(log.Default()),
 	)
@@ -75,10 +75,12 @@ var (
 )
 
 var (
-	// TimeInUTC converts Time values to UTC before comparison.
-	// This effectively ignores the location, as in method Time.Equal.
-	TimeInUTC Option = Transform(func(t time.Time) any {
-		return t.In(time.UTC)
+	// TimeEqual converts Time values to a form that can be compared
+	// meaningfully by the == operator.
+	// See the documentation on the Time type and Time.Equal
+	// for an explanation.
+	TimeEqual Option = Transform(func(t time.Time) any {
+		return t.Round(0).UTC()
 	})
 
 	// EqualNaN causes NaN float64 values to be treated as equal.

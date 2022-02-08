@@ -55,7 +55,7 @@ compared. For instance, package `time` defines a method
 `Time.Equal`, that tells whether two `Time` values are
 the same instant, regardless of their locations. But we
 don't use it. Instead, we have custom comparison logic
-(`TimeInUTC`) to compare `Time` values while ignoring
+(`TimeEqual`) to compare `Time` values while ignoring
 their locations.
 
 The reason for this is that you might be trying to test

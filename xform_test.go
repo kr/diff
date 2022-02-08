@@ -7,16 +7,31 @@ import (
 	"kr.dev/diff"
 )
 
-func TestTimeInUTCEqual(t *testing.T) {
+func TestTimeLocationEqual(t *testing.T) {
 	tim := time.Now()
 	t0 := tim.In(time.UTC)
 	t1 := tim.In(time.Local)
 	diff.Test(t, t.Errorf, t0, t1,
-		diff.TimeInUTC)
+		diff.TimeEqual)
 
 }
 
-func TestTimeInUTCUnequal(t *testing.T) {
+func TestTimeMonotonicEqual(t *testing.T) {
+	tim := time.Now()
+	t0 := tim.Add(5 * time.Millisecond)
+	t1 := t0.Round(0)
+	if !t0.Equal(t1) {
+		t.Fatalf("oops, %v.Equal(%v) = false, want true (equal)", t0, t1)
+	}
+	if t0 == t1 {
+		t.Fatalf("oops, %v == %v, want false (unequal)", t0, t1)
+	}
+	diff.Test(t, t.Errorf, t0, t1,
+		diff.TimeEqual,
+	)
+}
+
+func TestTimeUnequal(t *testing.T) {
 	t0 := time.Now().In(time.UTC)
 	t1 := t0.Add(5 * time.Millisecond)
 
@@ -27,7 +42,7 @@ func TestTimeInUTCUnequal(t *testing.T) {
 		t.Logf(format, arg...)
 	}
 	diff.Test(t, sink, t0, t1,
-		diff.TimeInUTC)
+		diff.TimeEqual)
 
 	if equal {
 		t.Fail()
@@ -35,7 +50,7 @@ func TestTimeInUTCUnequal(t *testing.T) {
 
 }
 
-func TestNoTimeInUTCLoc(t *testing.T) {
+func TestNoTimeLoc(t *testing.T) {
 	tim := time.Now()
 	t0 := tim.In(time.UTC)
 	t1 := tim.In(time.Local)
