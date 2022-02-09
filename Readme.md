@@ -53,17 +53,17 @@ We also avoid calling methods on the values being
 compared. For instance, package `time` defines a method
 `Time.Equal`, that tells whether two `Time` values are
 the same instant, regardless of their locations. But we
-don't use it. Instead, we have custom comparison logic
-(`TimeEqual`) to compare `Time` values while ignoring
-their locations.
+don't use it or any other `Equal` method. Instead, we
+have custom comparison logic (`TimeEqual`) to compare
+`Time` values while ignoring their locations.
 
 The reason for this is that you might be trying to test
-your Equal method! It would be really confusing if
+your `Equal` method! It would be really confusing if
 there's a bug in the code you're testing, and that
 causes this package to produce incorrect results. You
-might end up with a "passing" test because Equal returns
-true even when the values are different. We want to
-reliably show you when the values are different.
+might end up with a "passing" test because `Equal`
+returns true even when the values are different. We want
+to reliably show you when the values are different.
 
 So our rule of thumb is **don't call methods on the
 values being compared**. Instead, if you need to
@@ -93,12 +93,12 @@ name. By design, the name is different every time.
 
 In this case, you use the `Transform` option to
 change each `*fs.PathError` into a new value, so that
-the transformed values are equal as long as Op and Err
-are equal, and unequal otherwise.
+the transformed values are equal as long as `Op` and
+`Err` are equal, and unequal otherwise.
 
-There are a couple more predefined transforms exported
-by this package. Their definitions are visible in the
-godoc at [kr.dev/diff](https://kr.dev/diff).
+There are also a couple of predefined transforms
+exported by this package. Their definitions are visible
+in the godoc at [kr.dev/diff](https://kr.dev/diff).
 
 Side note. Why doesn't the option look like this?
 
@@ -136,7 +136,7 @@ can assume they are different. (If you need to customize
 how values are compared, see [Custom
 Comparison](#custom-comparison).)
 
-There are a couple more predefined custom formats
+There are also a couple of predefined custom formats
 exported by this package. Their definitions are visible
 in the godoc at [kr.dev/diff](https://kr.dev/diff).
 
