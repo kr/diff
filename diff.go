@@ -10,7 +10,7 @@ import (
 )
 
 // Each compares values a and b, calling f for each difference it finds.
-// By default, its conditions for equality are similar to reflect.DeepEqual.
+// By default, its conditions for equality are like reflect.DeepEqual.
 //
 // The behavior can be adjusted by supplying Option values.
 // See Default for a complete list of default options.
@@ -20,16 +20,16 @@ func Each(f func(format string, arg ...any), a, b any, opt ...Option) {
 	d.each(a, b)
 }
 
-// Log compares values a and b, calling out.Output for each difference
-// it finds.
-// By default, its conditions for equality are similar to reflect.DeepEqual.
+// Log compares values a and b, printing each difference to its logger.
+// By default, its conditions for equality are like reflect.DeepEqual.
 //
 // Log provides a calldepth argument to its logger to show the file
 // and line number of the call to Log. This is usually preferable to
-// passing log.Printf to Each. The logger object can be set using
-// Logger.
+// passing log.Printf to Each.
 //
-// The behavior can be adjusted by supplying Option values.
+// The default logger object is log.Default().
+// It can be set using the Logger option.
+// The behavior can also be adjusted by supplying other Option values.
 // See Default for a complete list of default options.
 // Values in opt apply in addition to (and override) the defaults.
 func Log(a, b any, opt ...Option) {
@@ -44,7 +44,7 @@ func Log(a, b any, opt ...Option) {
 }
 
 // Test compares values a and b, calling f for each difference it finds.
-// By default, its conditions for equality are similar to reflect.DeepEqual.
+// By default, its conditions for equality are like reflect.DeepEqual.
 //
 //
 // Test also calls h.Helper() at the top of every internal function.
