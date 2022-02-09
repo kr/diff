@@ -28,9 +28,8 @@ Print diffs to stdout:
     diff.Each(fmt.Printf, a, b)
 
 There are also several options to change how it works if
-the default behavior isn't quite right. Check out the
-godoc at <kr.dev/diff> (this link will point to
-pkg.go.dev once that site supports generics).
+the default behavior isn't what you need. Check out the
+godoc at [kr.dev/diff](https://kr.dev/diff).
 
 # Design Philosophy
 
@@ -69,7 +68,7 @@ reliably show you when the values are different.
 So our rule of thumb is **don't call methods on the
 values being compared**. Instead, if you need to
 customize how comparisons are done, you can install a
-transform. See [Custom Comparison].
+transform. See [Custom Comparison](#custom-comparison).
 
 # Custom Comparison
 
@@ -99,7 +98,7 @@ are equal, and unequal otherwise.
 
 There are a couple more predefined transforms exported
 by this package. Their definitions are visible in the
-[godoc](https://kr.dev/diff).
+godoc at [kr.dev/diff](https://kr.dev/diff).
 
 Side note. Why doesn't the option look like this?
 
@@ -134,11 +133,12 @@ returns a description of the difference between them. It
 only gets called when the values are already determined
 to be unequal, so you don't have to compare them. You
 can assume they are different. (If you need to customize
-how values are compared, see [Custom Comparison].)
+how values are compared, see [Custom
+Comparison](#custom-comparison).)
 
 There are a couple more predefined custom formats
 exported by this package. Their definitions are visible
-in the [godoc](https://kr.dev/diff).
+in the godoc at [kr.dev/diff](https://kr.dev/diff).
 
 # Compatibility
 
@@ -156,6 +156,8 @@ On top of that, this is still a v0 module, so we might
 
 No promises here, but this is what I intend to work on:
 
+- [ ] example tests
+- [ ] fuzz tests
 - [ ] full output mode
 - [ ] sort map keys when possible
 - [ ] detect cycles when formatting full output
