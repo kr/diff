@@ -124,6 +124,9 @@ func EqualFuncs(b bool) Option {
 // for the purpose of determining equality.
 // The transformed value need not be the same type as T.
 //
+// Function f must be pure. It must not incorporate
+// randomness or rely on global state.
+//
 // A transform affects comparison, not output.
 // The original, untransformed value is still emitted
 // when a difference is found.

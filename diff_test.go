@@ -7,6 +7,7 @@ import (
 	"math"
 	"strings"
 	"testing"
+	"time"
 	"unsafe"
 
 	"kr.dev/diff"
@@ -216,6 +217,42 @@ func TestLog(t *testing.T) {
 	if !strings.HasPrefix(got, want) {
 		t.Errorf("diff.Log() = %q, want prefix %q", got, want)
 	}
+}
+
+// Bug reported by Blake.
+func TestTransformsTrancendFields(t *testing.T) {
+	type T struct {
+		A, B time.Time
+	}
+
+	now := time.Now()
+	a := T{A: now.Add(1), B: now.Add(7)}
+	b := T{A: now.Add(1).UTC()}
+
+	equal := diff.Transform(func(v T) any {
+		v.B = time.Time{}
+		return v
+	})
+
+	diff.Test(t, t.Errorf, a, b, equal)
+}
+
+// Bug reported by Blake.
+func TestInfLoop(t *testing.T) {
+	type T struct {
+		A, B time.Time
+	}
+
+	now := time.Now()
+	a := []T{{A: now.Add(1)}}
+	b := []T{{A: now.Add(1).UTC()}}
+
+	equal := diff.Transform(func(v T) any {
+		v.B = time.Time{}
+		return v
+	})
+
+	diff.Test(t, t.Errorf, a, b, equal)
 }
 
 func testUnequal(t *testing.T, a, b any) {

@@ -27,6 +27,7 @@ func TestEqualNaN(t *testing.T) {
 			got := false
 			f := func(format string, arg ...any) {
 				got = true
+				t.Logf(format, arg...)
 			}
 			diff.Test(t, f, tt.a, tt.b, tt.opt)
 			if got != tt.wantDiff {
