@@ -195,16 +195,15 @@ func (d *differ) each(a, b any) {
 	d.walk(e, reflect.ValueOf(a), reflect.ValueOf(b), true, true)
 }
 
-func (d *differ) equal(av, bv reflect.Value) bool {
+func (d *differ) equalAsIs(av, bv reflect.Value) bool {
 	d2 := &differ{
 		config: d.config,
 		aSeen:  map[visit]visit{},
 		bSeen:  map[visit]visit{},
 	}
-	d2.config.xform = nil
 	d2.config.format = nil
 	e := &countEmitter{}
-	d2.walk(e, av, bv, true, true)
+	d2.walk(e, av, bv, false, true)
 	return !e.didEmit()
 }
 
@@ -251,24 +250,22 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	}
 
 	// Check for a transform func.
-	var ax, bx reflect.Value
-	var haveXform bool
-	if xformOk {
-		var xf reflect.Value
-		xf, haveXform = d.config.xform[t]
-		if haveXform && xformOk {
-			ax = reflectApply(xf, av)
-			bx = reflectApply(xf, bv)
-			if d.equal(ax, bx) {
-				return
-			}
+	didXform := false
+	if xf, haveXform := d.config.xform[t]; xformOk && haveXform {
+		ax := reflectApply(xf, av)
+		bx := reflectApply(xf, bv)
+		if d.equalAsIs(ax, bx) {
+			return
 		}
+		didXform = true
 	}
 
 	// Check for a format func.
-	if ff, ok := d.config.format[t]; ok && !d.equal(av, bv) {
-		s := reflectApply(ff, av, bv).String()
-		e.emitf(av, bv, "%s", s)
+	if ff, ok := d.config.format[t]; ok {
+		if didXform || !d.equalAsIs(av, bv) {
+			s := reflectApply(ff, av, bv).String()
+			e.emitf(av, bv, "%s", s)
+		}
 		return
 	}
 
@@ -295,7 +292,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 			d.emitPointers(e, av, bv, wantType)
 		}
 	case reflect.Interface:
-		d.walk(e, av.Elem(), bv.Elem(), true, true)
+		d.walk(e, av.Elem(), bv.Elem(), xformOk, true)
 	case reflect.Map:
 		if av.IsNil() != bv.IsNil() {
 			d.emitPointers(e, av, bv, wantType)
@@ -368,11 +365,14 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 
 	// The xform check returns early if the transformed values are
 	// deeply equal. So if we got this far, we know they are different.
-	// If we didn't find a difference in the untransformed values, make
-	// sure to emit *something*, and then diff the *transformed* values.
-	if haveXform && !e.didEmit() {
-		e.emitf(av, bv, "(transformed values differ)")
-		d.walk(e.subf(t, "->"), ax, bx, false, true)
+	// If we didn't find a difference in the untransformed values,
+	// the xform function can't be a pure function.
+	// Make sure to emit *something* so the user knows there is a diff.
+	if didXform && !e.didEmit() {
+		var buf bytes.Buffer
+		writeType(&buf, t)
+		e.emitf(av, bv, "warning: %s transform is impure", buf.String())
+		e.emitf(av, bv, "%v != %v", formatShort(av, wantType), formatShort(bv, wantType))
 	}
 }
 
