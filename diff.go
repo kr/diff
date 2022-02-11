@@ -6,7 +6,13 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"unicode/utf8"
 	"unsafe"
+)
+
+var (
+	reflectBytes  = reflect.TypeOf((*[]byte)(nil)).Elem()
+	reflectString = reflect.TypeOf((*string)(nil)).Elem()
 )
 
 // Each compares values a and b, calling f for each difference it finds.
@@ -332,6 +338,12 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 		if av.Len() == bv.Len() && av.Pointer() == bv.Pointer() {
 			break
 		}
+		if t.ConvertibleTo(reflectBytes) {
+			as := av.Convert(reflectString)
+			bs := bv.Convert(reflectString)
+			stringDiff(e, av, bv, as.String(), bs.String())
+			break
+		}
 		// TODO(kr): fancy diff (histogram, myers)
 		n := av.Len()
 		if blen := bv.Len(); n != blen {
@@ -354,9 +366,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	case reflect.Complex64, reflect.Complex128:
 		d.eqtest(e, av, bv, av.Complex(), bv.Complex(), wantType)
 	case reflect.String:
-		if a, b := av.String(), bv.String(); a != b {
-			e.emitf(av, bv, "%q != %q", a, b)
-		}
+		stringDiff(e, av, bv, av.String(), bv.String())
 	case reflect.Chan, reflect.UnsafePointer:
 		if a, b := av.Pointer(), bv.Pointer(); a != b {
 			d.emitPointers(e, av, bv, wantType)
@@ -394,6 +404,21 @@ func (d *differ) emitPointers(e emitfer, av, bv reflect.Value, wantType bool) {
 		formatShort(av, wantType),
 		formatShort(bv, wantType),
 	)
+}
+
+func stringDiff(e emitfer, av, bv reflect.Value, a, b string) {
+	if a == b {
+		return
+	}
+
+	u := utf8.ValidString(a) && utf8.ValidString(b)
+	if !u {
+		// TODO(kr): binary diff, hex, something
+		e.emitf(av, bv, "binary: %+q != %+q", a, b)
+		return
+	}
+
+	textDiff(e, av, bv, a, b)
 }
 
 func keyDiff(av, bv reflect.Value) (ak, both, bk []reflect.Value) {
