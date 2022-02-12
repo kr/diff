@@ -173,6 +173,10 @@ func (e *countEmitter) didEmit() bool {
 }
 
 func reflectApply(f reflect.Value, v ...reflect.Value) reflect.Value {
+	for i := range v {
+		p := unsafe.Pointer(v[i].UnsafeAddr())
+		v[i] = reflect.NewAt(v[i].Type(), p).Elem()
+	}
 	return f.Call(v)[0]
 }
 
@@ -192,7 +196,9 @@ func newDiffer(h func(), f func(format string, arg ...any), opt ...Option) *diff
 func (d *differ) each(a, b any) {
 	d.config.helper()
 	e := &printEmitter{config: d.config}
-	d.walk(e, reflect.ValueOf(a), reflect.ValueOf(b), true, true)
+	av := addressable(reflect.ValueOf(a))
+	bv := addressable(reflect.ValueOf(b))
+	d.walk(e, av, bv, true, true)
 }
 
 func (d *differ) equalAsIs(av, bv reflect.Value) bool {
@@ -252,8 +258,8 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	// Check for a transform func.
 	didXform := false
 	if xf, haveXform := d.config.xform[t]; xformOk && haveXform {
-		ax := reflectApply(xf, av)
-		bx := reflectApply(xf, bv)
+		ax := addressable(reflectApply(xf, av).Elem())
+		bx := addressable(reflectApply(xf, bv).Elem())
 		if d.equalAsIs(ax, bx) {
 			return
 		}
@@ -410,6 +416,15 @@ func keyDiff(av, bv reflect.Value) (ak, both, bk []reflect.Value) {
 		}
 	}
 	return ak, both, bk
+}
+
+func addressable(r reflect.Value) reflect.Value {
+	if !r.IsValid() {
+		return r
+	}
+	a := reflect.New(r.Type()).Elem()
+	a.Set(r)
+	return a
 }
 
 func stackDepth() int {

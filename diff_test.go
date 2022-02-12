@@ -219,6 +219,16 @@ func TestLog(t *testing.T) {
 	}
 }
 
+func TestTransformUnexported(t *testing.T) {
+	type T struct { v time.Time }
+	diff.Test(t, t.Errorf, &T{}, &T{})
+}
+
+func TestTransformUnaddressable(t *testing.T) {
+	type T struct { v time.Time }
+	diff.Test(t, t.Errorf, T{}, T{})
+}
+
 // Bug reported by Blake.
 func TestTransformsTrancendFields(t *testing.T) {
 	type T struct {
