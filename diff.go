@@ -218,12 +218,8 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	if !av.IsValid() && !bv.IsValid() {
 		return
 	}
-	if !av.IsValid() {
-		e.emitf(av, bv, "nil != %v", formatShort(bv, true))
-		return
-	}
-	if !bv.IsValid() {
-		e.emitf(av, bv, "%v != nil", formatShort(av, true))
+	if !av.IsValid() || !bv.IsValid() {
+		e.emitf(av, bv, "%v != %v", formatShort(av, true), formatShort(bv, true))
 		return
 	}
 
