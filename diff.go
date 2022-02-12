@@ -224,8 +224,8 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	}
 
 	t := av.Type()
-	if bt := bv.Type(); t != bt {
-		e.emitf(av, bv, "%v != %v", t, bt)
+	if t != bv.Type() {
+		e.emitf(av, bv, "%v != %v", formatShort(av, true), formatShort(bv, true))
 		return
 	}
 
