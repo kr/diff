@@ -123,7 +123,7 @@ func TestWriteShort(t *testing.T) {
 		{"a", `"a"`},
 		{(chan int)(nil), "(chan int)(nil)"},
 		{Chan(nil), "diff.Chan(nil)"},
-		{unsafe.Pointer(uintptr(0)), "unsafe.Pointer(0x0)"},
+		{unsafe.Pointer(nil), "unsafe.Pointer(0x0)"},
 
 		// Truncate nested values.
 		{T{V: [1]int{0}}, "diff.T{V:[1]int{...}}"},

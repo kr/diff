@@ -59,7 +59,7 @@ func TestEqual(t *testing.T) {
 		ab(""),
 		ab(make(chan int)),
 		ab(unsafe.Pointer(new(int))),
-		ab(unsafe.Pointer(uintptr(0))),
+		ab(unsafe.Pointer(nil)),
 	}
 
 	for _, tt := range cases {
