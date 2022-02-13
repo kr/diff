@@ -96,7 +96,7 @@ func writeValue(w io.Writer, v reflect.Value, wantType, short bool, allowDepth i
 		}
 		io.WriteString(w, "{")
 		first := true
-		for it := v.MapRange(); it.Next(); first = false {
+		for _, mk := range sortedKeys(v) {
 			if !first {
 				io.WriteString(w, ", ")
 				if short {
@@ -104,7 +104,7 @@ func writeValue(w io.Writer, v reflect.Value, wantType, short bool, allowDepth i
 					break
 				}
 			}
-			mk := it.Key()
+			first = false
 			mv := v.MapIndex(mk)
 			writeValue(w, mk, false, short, 0)
 			io.WriteString(w, ":")

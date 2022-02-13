@@ -8,11 +8,18 @@ import (
 	"strings"
 	"unicode/utf8"
 	"unsafe"
+
+	"github.com/rogpeppe/go-internal/fmtsort"
 )
 
 var (
 	reflectBytes  = reflect.TypeOf((*[]byte)(nil)).Elem()
 	reflectString = reflect.TypeOf((*string)(nil)).Elem()
+	reflectBool   = reflect.TypeOf(true)
+)
+
+var (
+	reflectTrue = reflect.ValueOf(true)
 )
 
 // Each compares values a and b, calling f for each difference it finds.
@@ -179,10 +186,6 @@ func (e *countEmitter) didEmit() bool {
 }
 
 func reflectApply(f reflect.Value, v ...reflect.Value) reflect.Value {
-	for i := range v {
-		p := unsafe.Pointer(v[i].UnsafeAddr())
-		v[i] = reflect.NewAt(v[i].Type(), p).Elem()
-	}
 	return f.Call(v)[0]
 }
 
@@ -290,7 +293,9 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 		}
 	case reflect.Struct:
 		for i := 0; i < t.NumField(); i++ {
-			d.walk(e.subf(t, "."+t.Field(i).Name), av.Field(i), bv.Field(i), true, false)
+			afield := access(av.Field(i))
+			bfield := access(bv.Field(i))
+			d.walk(e.subf(t, "."+t.Field(i).Name), afield, bfield, true, false)
 		}
 	case reflect.Func:
 		if d.config.equalFuncs {
@@ -300,7 +305,9 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 			d.emitPointers(e, av, bv, wantType)
 		}
 	case reflect.Interface:
-		d.walk(e, av.Elem(), bv.Elem(), xformOk, true)
+		aelem := addressable(av.Elem())
+		belem := addressable(bv.Elem())
+		d.walk(e, aelem, belem, xformOk, true)
 	case reflect.Map:
 		if av.IsNil() != bv.IsNil() {
 			d.emitPointers(e, av, bv, wantType)
@@ -309,17 +316,17 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 		if av.Pointer() == bv.Pointer() {
 			break
 		}
-		ak, both, bk := keyDiff(av, bv)
-		for _, k := range ak {
-			e.subf(t, "[%#v]", k).
-				emitf(av.MapIndex(k), bv.MapIndex(k), "(removed)")
-		}
-		for _, k := range both {
-			d.walk(e.subf(t, "[%#v]", k), av.MapIndex(k), bv.MapIndex(k), true, false)
-		}
-		for _, k := range bk {
-			e.subf(t, "[%#v]", k).
-				emitf(av.MapIndex(k), bv.MapIndex(k), "(added) %v", formatShort(bv.MapIndex(k), false))
+
+		for _, k := range sortedKeys(av, bv) {
+			if av.MapIndex(k).IsValid() && bv.MapIndex(k).IsValid() {
+				d.walk(e.subf(t, "[%#v]", k), av.MapIndex(k), bv.MapIndex(k), true, false)
+			} else if av.MapIndex(k).IsValid() {
+				e.subf(t, "[%#v]", k).
+					emitf(av.MapIndex(k), bv.MapIndex(k), "(removed)")
+			} else { // k in bv
+				e.subf(t, "[%#v]", k).
+					emitf(av.MapIndex(k), bv.MapIndex(k), "(added) %v", formatShort(bv.MapIndex(k), false))
+			}
 		}
 	case reflect.Ptr:
 		if av.Pointer() == bv.Pointer() {
@@ -421,22 +428,16 @@ func stringDiff(e emitfer, av, bv reflect.Value, a, b string) {
 	textDiff(e, av, bv, a, b)
 }
 
-func keyDiff(av, bv reflect.Value) (ak, both, bk []reflect.Value) {
-	for aIter := av.MapRange(); aIter.Next(); {
-		k := aIter.Key()
-		if !bv.MapIndex(k).IsValid() {
-			ak = append(ak, k)
-		} else {
-			both = append(both, k)
+func sortedKeys(maps ...reflect.Value) []reflect.Value {
+	t := reflect.MapOf(maps[0].Type().Key(), reflectBool)
+	merged := reflect.MakeMap(t)
+	for _, m := range maps {
+		iter := m.MapRange()
+		for iter.Next() {
+			merged.SetMapIndex(iter.Key(), reflectTrue)
 		}
 	}
-	for bIter := bv.MapRange(); bIter.Next(); {
-		k := bIter.Key()
-		if !av.MapIndex(k).IsValid() {
-			bk = append(bk, k)
-		}
-	}
-	return ak, both, bk
+	return fmtsort.Sort(merged).Key
 }
 
 func addressable(r reflect.Value) reflect.Value {
@@ -446,6 +447,11 @@ func addressable(r reflect.Value) reflect.Value {
 	a := reflect.New(r.Type()).Elem()
 	a.Set(r)
 	return a
+}
+
+func access(v reflect.Value) reflect.Value {
+	p := unsafe.Pointer(v.UnsafeAddr())
+	return reflect.NewAt(v.Type(), p).Elem()
 }
 
 func stackDepth() int {
