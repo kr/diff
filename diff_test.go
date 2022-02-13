@@ -179,7 +179,7 @@ func TestCycle(t *testing.T) {
 }
 
 func TestPath(t *testing.T) {
-	type T struct { N int }
+	type T struct{ N int }
 	a := &T{N: 1}
 	b := &T{N: 2}
 	var got string
@@ -220,12 +220,12 @@ func TestLog(t *testing.T) {
 }
 
 func TestTransformUnexported(t *testing.T) {
-	type T struct { v time.Time }
+	type T struct{ v time.Time }
 	diff.Test(t, t.Errorf, &T{}, &T{})
 }
 
 func TestTransformUnaddressable(t *testing.T) {
-	type T struct { v time.Time }
+	type T struct{ v time.Time }
 	diff.Test(t, t.Errorf, T{}, T{})
 }
 
