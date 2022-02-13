@@ -159,7 +159,7 @@ No promises here, but this is what I intend to work on:
 - [ ] example tests
 - [ ] fuzz tests
 - [ ] full output mode
-- [ ] sort map keys when possible
+- [x] sort map keys when possible
 - [ ] detect cycles when formatting full output
 - [ ] histogram/myers diff for lists and slices
 - [ ] special handling for string and []byte

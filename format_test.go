@@ -58,7 +58,6 @@ func TestWriteShortSpecial(t *testing.T) {
 		v    any
 		want []string
 	}{
-		{map[int]int{0: 0, 1: 1}, []string{"map[int]int{", ":", ", ...}"}},
 		{make(chan int), []string{"(chan int)(0x", ")"}},
 		{unsafe.Pointer(new(int)), []string{"unsafe.Pointer(0x", ")"}},
 
@@ -110,6 +109,7 @@ func TestWriteShort(t *testing.T) {
 		{map[int]int(nil), "map[int]int(nil)"},
 		{map[int]int{}, "map[int]int{}"},
 		{map[int]int{0: 0}, "map[int]int{0:0}"},
+		{map[int]int{0: 0, 1: 1, 2: 2, 3: 3, 4: 4}, "map[int]int{0:0, ...}"},
 		{(*int)(nil), "(*int)(nil)"},
 		{ptr(0), "&int(0)"},
 		{ptr(ptr(0)), "&&int(0)"},

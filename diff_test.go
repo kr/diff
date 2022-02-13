@@ -78,6 +78,30 @@ func TestEqual(t *testing.T) {
 	}
 }
 
+func TestMapSort(t *testing.T) {
+	a := map[int]int{0: 0, 1: 0, 2: 0, 3: -1}
+	b := map[int]int{2: 2, 3: -1, 4: 4, 5: 5}
+
+	got := ""
+	sink := func(format string, arg ...any) {
+		t.Helper()
+		t.Logf(format, arg...)
+		got += fmt.Sprintf(format, arg...)
+	}
+	diff.Test(t, sink, a, b,
+		diff.EqualFuncs(false))
+
+	want := "map[int]int[0]: (removed)\n" +
+		"map[int]int[1]: (removed)\n" +
+		"map[int]int[2]: 0 != 2\n" +
+		"map[int]int[4]: (added) 4\n" +
+		"map[int]int[5]: (added) 5\n"
+	if got != want {
+		t.Errorf("got:\n%s", got)
+		t.Errorf("want:\n%s", want)
+	}
+}
+
 func TestUnequal(t *testing.T) {
 	var cases = [][2]any{
 		{[1]int{0}, [1]int{1}},
