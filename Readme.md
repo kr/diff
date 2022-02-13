@@ -36,7 +36,7 @@ godoc at [kr.dev/diff](https://kr.dev/diff).
 Here are some general guidelines I try to follow for
 this module:
 
-- **make it easy to read for humans** (as for computers? meh)
+- **make it easy to read for humans** (not computers)
 - **use Go-style notation** for familiarity
 - **favor being concise over being explicit**
 - but **be explicit where necessary** to avoid confusion
@@ -142,9 +142,9 @@ in the godoc at [kr.dev/diff](https://kr.dev/diff).
 
 # Compatibility
 
-Since the output of this package is mainly meant for
-humans to read, it's not designed to be easy to for
-computers to parse, and we will occasionally change the
+The output of this package is mainly meant for
+humans to read, and it's not a goal to be easy for
+computers to parse. We will occasionally change the
 format to try to make it better. So please keep this in
 mind if you want to make a tool that consumes the output
 of this module; it might break!
