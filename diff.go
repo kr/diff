@@ -318,14 +318,13 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 		}
 
 		for _, k := range sortedKeys(av, bv) {
+			esub := e.subf(t, "[%#v]", k)
 			if av.MapIndex(k).IsValid() && bv.MapIndex(k).IsValid() {
-				d.walk(e.subf(t, "[%#v]", k), av.MapIndex(k), bv.MapIndex(k), true, false)
+				d.walk(esub, av.MapIndex(k), bv.MapIndex(k), true, false)
 			} else if av.MapIndex(k).IsValid() {
-				e.subf(t, "[%#v]", k).
-					emitf(av.MapIndex(k), bv.MapIndex(k), "(removed)")
+				esub.emitf(av.MapIndex(k), bv.MapIndex(k), "(removed)")
 			} else { // k in bv
-				e.subf(t, "[%#v]", k).
-					emitf(av.MapIndex(k), bv.MapIndex(k), "(added) %v", formatShort(bv.MapIndex(k), false))
+				esub.emitf(av.MapIndex(k), bv.MapIndex(k), "(added) %v", formatShort(bv.MapIndex(k), false))
 			}
 		}
 	case reflect.Ptr:
