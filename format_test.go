@@ -247,23 +247,23 @@ func TestWriteFull(t *testing.T) {
 		v    any
 		want string
 	}{
-		{[0]int{}, "[0]int{}"},
-		{[1]int{}, "[1]int{0}"},
-		{[2]int{}, "[2]int{\n    0,\n    0,\n}"},
+		{[0]int{}, "    [0]int{}"},
+		{[1]int{}, "    [1]int{0}"},
+		{[2]int{}, "    [2]int{\n        0,\n        0,\n    }"},
 
-		{Struct0{}, "diff.Struct0{}"},
-		{Struct1{0}, "diff.Struct1{A:0}"},
-		{Struct2{0, 1}, "diff.Struct2{\n    A:  0,\n    BB: 1,\n}"},
+		{Struct0{}, "    diff.Struct0{}"},
+		{Struct1{0}, "    diff.Struct1{A:0}"},
+		{Struct2{0, 1}, "    diff.Struct2{\n        A:  0,\n        BB: 1,\n    }"},
 
-		{map[int]int{}, "map[int]int{}"},
-		{map[int]int{0: 0}, "map[int]int{0:0}"},
-		{map[int]int{0: 0, 1: 1}, "map[int]int{\n    0: 0,\n    1: 1,\n}"},
-		{map[int]int{0: 0, 1: 1}, "map[int]int{\n    0: 0,\n    1: 1,\n}"},
-		{map[int]int{0: 0, 10: 1}, "map[int]int{\n    0:  0,\n    10: 1,\n}"},
+		{map[int]int{}, "    map[int]int{}"},
+		{map[int]int{0: 0}, "    map[int]int{0:0}"},
+		{map[int]int{0: 0, 1: 1}, "    map[int]int{\n        0: 0,\n        1: 1,\n    }"},
+		{map[int]int{0: 0, 1: 1}, "    map[int]int{\n        0: 0,\n        1: 1,\n    }"},
+		{map[int]int{0: 0, 10: 1}, "    map[int]int{\n        0:  0,\n        10: 1,\n    }"},
 
-		{[]int{}, "[]int{}"},
-		{[]int{0}, "[]int{0}"},
-		{[]int{0, 0}, "[]int{\n    0,\n    0,\n}"},
+		{[]int{}, "    []int{}"},
+		{[]int{0}, "    []int{0}"},
+		{[]int{0, 0}, "    []int{\n        0,\n        0,\n    }"},
 	}
 
 	for i, tt := range cases {

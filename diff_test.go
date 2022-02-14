@@ -225,7 +225,7 @@ func TestFullRoot(t *testing.T) {
 		got += fmt.Sprintf(format, arg...)
 	}
 	diff.Each(f, nil, b, diff.EmitFull)
-	want := "(A)\nnil\n(B)\n&diff_test.T{\n    A:  2,\n    BB: 4,\n}\n"
+	want := "(A)\n    nil\n(B)\n    &diff_test.T{\n        A:  2,\n        BB: 4,\n    }\n"
 	if got != want {
 		t.Errorf("bad diff")
 		t.Logf("got:\n%s", got)
@@ -242,7 +242,7 @@ func TestFullField(t *testing.T) {
 		got += fmt.Sprintf(format, arg...)
 	}
 	diff.Each(f, &C{}, &C{T: b}, diff.EmitFull)
-	want := "diff_test.C.T: (A)\n(*diff_test.T)(nil)\ndiff_test.C.T: (B)\n&diff_test.T{\n    A:  2,\n    BB: 4,\n}\n"
+	want := "diff_test.C.T:\n(A)\n    (*diff_test.T)(nil)\n(B)\n    &diff_test.T{\n        A:  2,\n        BB: 4,\n    }\n"
 	if got != want {
 		t.Errorf("bad diff")
 		t.Logf("got:\n%s", got)
