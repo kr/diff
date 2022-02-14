@@ -106,6 +106,7 @@ type config struct {
 
 	helper func()
 	output Outputter
+	prefix string
 }
 
 type visit struct {
@@ -134,16 +135,16 @@ func (e *printEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
 		if len(e.path) > 0 {
 			p = strings.Join(e.path, "") + ": "
 		}
-		arg = append([]any{p}, arg...)
-		e.config.sink("%s"+format+"\n", arg...)
+		arg = append([]any{e.config.prefix, p}, arg...)
+		e.config.sink("%s%s"+format+"\n", arg...)
 	case pathOnly:
-		e.config.sink("%s\n", strings.Join(e.path, ""))
+		e.config.sink("%s%s\n", e.config.prefix, strings.Join(e.path, ""))
 	case full:
 		var p string
 		if len(e.path) > 0 {
 			p = strings.Join(e.path, "") + ":\n"
 		}
-		e.config.sink("%s(A)\n%#v\n(B)\n%#v\n", p, formatFull(av), formatFull(bv))
+		e.config.sink("%s%s(A)\n%#v\n(B)\n%#v\n", e.config.prefix, p, formatFull(av), formatFull(bv))
 	default:
 		panic("diff: bad verbose level")
 	}
