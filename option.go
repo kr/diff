@@ -111,6 +111,12 @@ func verbosity(n level) Option {
 	}}
 }
 
+func Prefix(a ...any) Option {
+	return Option{func(c *config) {
+		c.prefix = fmt.Sprint(a...)
+	}}
+}
+
 // EqualFuncs controls how function values are compared.
 // If true, any two non-nil function values of the same type
 // are treated as equal;
