@@ -38,7 +38,11 @@ type formatter struct {
 }
 
 func (f *formatter) Format(fs fmt.State, verb rune) {
-	writeValue(fs, f.v, f.wantType, f.full, f.allowDepth)
+	var w io.Writer = fs
+	if f.full {
+		w = indent.New(w, []byte("    "))
+	}
+	writeValue(w, f.v, f.wantType, f.full, f.allowDepth)
 }
 
 func writeValue(w io.Writer, v reflect.Value, wantType, full bool, allowDepth int) {

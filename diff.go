@@ -128,19 +128,22 @@ type printEmitter struct {
 func (e *printEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
 	e.config.helper()
 	e.did = true
-	var p string
-	if len(e.path) > 0 {
-		p = strings.Join(e.path, "") + ": "
-	}
 	switch e.config.level {
 	case auto:
+		var p string
+		if len(e.path) > 0 {
+			p = strings.Join(e.path, "") + ": "
+		}
 		arg = append([]any{p}, arg...)
 		e.config.sink("%s"+format+"\n", arg...)
 	case pathOnly:
 		e.config.sink("%s\n", strings.Join(e.path, ""))
 	case full:
-		e.config.sink("%s(A)\n%#v\n", p, formatFull(av))
-		e.config.sink("%s(B)\n%#v\n", p, formatFull(bv))
+		var p string
+		if len(e.path) > 0 {
+			p = strings.Join(e.path, "") + ":\n"
+		}
+		e.config.sink("%s(A)\n%#v\n(B)\n%#v\n", p, formatFull(av), formatFull(bv))
 	default:
 		panic("diff: bad verbose level")
 	}
