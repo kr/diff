@@ -139,7 +139,8 @@ func (e *printEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
 	case pathOnly:
 		e.config.sink("%s\n", strings.Join(e.path, ""))
 	case full:
-		e.config.sink("%s%#v != %#v\n", p, av, bv)
+		e.config.sink("%s(A)\n%#v\n", p, formatFull(av))
+		e.config.sink("%s(B)\n%#v\n", p, formatFull(bv))
 	default:
 		panic("diff: bad verbose level")
 	}

@@ -103,7 +103,6 @@ func TestWriteShort(t *testing.T) {
 		{[2]int{}, "[2]int{0, ...}"},
 		{struct{ V int }{0}, "struct{ V int }{V:0}"},
 		{struct{ V, U int }{}, "struct{ V int; U int }{V:0, ...}"},
-		{struct{ V int }{0}, "struct{ V int }{V:0}"},
 		{(func())(nil), "(func())(nil)"},
 		{func() {}, "func() {...}"},
 		{map[int]int(nil), "map[int]int(nil)"},
@@ -233,6 +232,48 @@ func TestWriteShort(t *testing.T) {
 			t.Logf("got: %s", got)
 			if got != tt.want {
 				t.Errorf("formatShort(%#v) = %#q, want %#q", tt.v, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestWriteFull(t *testing.T) {
+	type (
+		Struct0 struct{}
+		Struct1 struct{ A int }
+		Struct2 struct{ A, BB int }
+	)
+	cases := []struct {
+		v    any
+		want string
+	}{
+		{[0]int{}, "[0]int{}"},
+		{[1]int{}, "[1]int{0}"},
+		{[2]int{}, "[2]int{\n    0,\n    0,\n}"},
+
+		{Struct0{}, "diff.Struct0{}"},
+		{Struct1{0}, "diff.Struct1{A:0}"},
+		{Struct2{0, 1}, "diff.Struct2{\n    A:  0,\n    BB: 1,\n}"},
+
+		{map[int]int{}, "map[int]int{}"},
+		{map[int]int{0: 0}, "map[int]int{0:0}"},
+		{map[int]int{0: 0, 1: 1}, "map[int]int{\n    0: 0,\n    1: 1,\n}"},
+		{map[int]int{0: 0, 1: 1}, "map[int]int{\n    0: 0,\n    1: 1,\n}"},
+		{map[int]int{0: 0, 10: 1}, "map[int]int{\n    0:  0,\n    10: 1,\n}"},
+
+		{[]int{}, "[]int{}"},
+		{[]int{0}, "[]int{0}"},
+		{[]int{0, 0}, "[]int{\n    0,\n    0,\n}"},
+	}
+
+	for i, tt := range cases {
+		t.Run(fmt.Sprint(i, ":", tt), func(t *testing.T) {
+			rv := reflect.ValueOf(tt.v)
+			got := fmt.Sprint(formatFull(rv))
+			if got != tt.want {
+				t.Errorf("bad formatFull(%#v)", tt.v)
+				t.Logf("got:\n%s", got)
+				t.Logf("want:\n%s", tt.want)
 			}
 		})
 	}
