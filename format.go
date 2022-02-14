@@ -18,6 +18,7 @@ func formatShort(v reflect.Value, wantType bool) fmt.Formatter {
 		wantType:   wantType,
 		full:       false,
 		allowDepth: 2,
+		seen:       map[visit]bool{},
 	}
 }
 
@@ -27,6 +28,7 @@ func formatFull(v reflect.Value) fmt.Formatter {
 		wantType:   true,
 		full:       true,
 		allowDepth: 1e8,
+		seen:       map[visit]bool{},
 	}
 }
 
@@ -35,6 +37,7 @@ type formatter struct {
 	wantType   bool
 	full       bool
 	allowDepth int
+	seen       map[visit]bool
 }
 
 func (f *formatter) Format(fs fmt.State, verb rune) {
@@ -46,12 +49,27 @@ func (f *formatter) Format(fs fmt.State, verb rune) {
 }
 
 func (f *formatter) writeTo(w io.Writer, v reflect.Value, wantType bool, depth int) {
-	// TODO(kr): detect recursion
 	if !v.IsValid() {
 		io.WriteString(w, "nil") // untyped nil
 		return
 	}
-	switch t := v.Type(); t.Kind() {
+	t := v.Type()
+
+	// Check for cycles.
+	switch t.Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Slice:
+		if v.IsNil() {
+			break
+		}
+		vis := visit{unsafe.Pointer(v.Pointer()), t}
+		if f.seen[vis] {
+			io.WriteString(w, "...")
+			return
+		}
+		f.seen[vis] = true
+	}
+
+	switch t.Kind() {
 	case reflect.Array:
 		if wantType {
 			writeType(w, t)
