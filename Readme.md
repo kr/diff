@@ -160,7 +160,7 @@ No promises here, but this is what I intend to work on:
 - [ ] fuzz tests
 - [x] full output mode
 - [x] sort map keys when possible
-- [ ] detect cycles when formatting full output
+- [x] detect cycles when formatting full output
 - [ ] histogram/myers diff for lists and slices
 - [ ] special handling for string and []byte
       (short, text, multiline, whitespace, etc)

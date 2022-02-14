@@ -279,6 +279,37 @@ func TestWriteFull(t *testing.T) {
 	}
 }
 
+const wantCycle = `
+    &diff.T{
+        N: 1,
+        P: {
+            N: 2,
+            P: ...,
+        },
+    }
+`
+
+func TestWriteCycle(t *testing.T) {
+	type T struct {
+		N int
+		P *T
+	}
+
+	v2 := &T{N: 2, P: nil}
+	v1 := &T{N: 1, P: v2}
+	v2.P = v1
+
+	want := wantCycle[1 : len(wantCycle)-1]
+
+	rv := reflect.ValueOf(v1)
+	got := fmt.Sprint(formatFull(rv))
+	if got != want {
+		t.Errorf("bad formatFull(%#v)", v1)
+		t.Logf("got:\n%s", got)
+		t.Logf("want:\n%s", want)
+	}
+}
+
 func TestWriteType(t *testing.T) {
 	type T struct{}
 	testWriteType[any](t, "any")
