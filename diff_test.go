@@ -217,6 +217,39 @@ func TestPath(t *testing.T) {
 	}
 }
 
+func TestFullRoot(t *testing.T) {
+	type T struct{ A, BB int }
+	b := &T{A: 2, BB: 4}
+	var got string
+	f := func(format string, arg ...any) {
+		got += fmt.Sprintf(format, arg...)
+	}
+	diff.Each(f, nil, b, diff.EmitFull)
+	want := "(A)\nnil\n(B)\n&diff_test.T{\n    A:  2,\n    BB: 4,\n}\n"
+	if got != want {
+		t.Errorf("bad diff")
+		t.Logf("got:\n%s", got)
+		t.Logf("want:\n%s", want)
+	}
+}
+
+func TestFullField(t *testing.T) {
+	type T struct{ A, BB int }
+	type C struct{ T *T }
+	b := &T{A: 2, BB: 4}
+	var got string
+	f := func(format string, arg ...any) {
+		got += fmt.Sprintf(format, arg...)
+	}
+	diff.Each(f, &C{}, &C{T: b}, diff.EmitFull)
+	want := "diff_test.C.T: (A)\n(*diff_test.T)(nil)\ndiff_test.C.T: (B)\n&diff_test.T{\n    A:  2,\n    BB: 4,\n}\n"
+	if got != want {
+		t.Errorf("bad diff")
+		t.Logf("got:\n%s", got)
+		t.Logf("want:\n%s", want)
+	}
+}
+
 func TestPicky(t *testing.T) {
 	type T struct{ v struct{ n int } }
 	var a, b T

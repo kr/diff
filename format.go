@@ -4,29 +4,45 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"text/tabwriter"
 	"unsafe"
+
+	"kr.dev/diff/internal/indent"
 )
 
 var reflectAny = reflect.TypeOf((*any)(nil)).Elem()
 
 func formatShort(v reflect.Value, wantType bool) fmt.Formatter {
 	return &formatter{
-		v:        v,
-		wantType: wantType,
+		v:          v,
+		wantType:   wantType,
+		full:       false,
+		allowDepth: 2,
+	}
+}
+
+func formatFull(v reflect.Value) fmt.Formatter {
+	return &formatter{
+		v:          v,
+		wantType:   true,
+		full:       true,
+		allowDepth: 1e8,
 	}
 }
 
 type formatter struct {
-	v        reflect.Value
-	wantType bool
+	v          reflect.Value
+	wantType   bool
+	full       bool
+	allowDepth int
 }
 
 func (f *formatter) Format(fs fmt.State, verb rune) {
-	writeValue(fs, f.v, f.wantType, true, 1)
+	writeValue(fs, f.v, f.wantType, f.full, f.allowDepth)
 }
 
-func writeValue(w io.Writer, v reflect.Value, wantType, short bool, allowDepth int) {
-	// TODO(kr): detect recursion during full output (short=false)
+func writeValue(w io.Writer, v reflect.Value, wantType, full bool, allowDepth int) {
+	// TODO(kr): detect recursion
 	if !v.IsValid() {
 		io.WriteString(w, "nil") // untyped nil
 		return
@@ -36,42 +52,58 @@ func writeValue(w io.Writer, v reflect.Value, wantType, short bool, allowDepth i
 		if wantType {
 			writeType(w, t)
 		}
-		if allowDepth < 1 && t.Len() > 0 {
+		if allowDepth < 2 && t.Len() > 0 {
 			io.WriteString(w, "{...}")
 			break
 		}
 		io.WriteString(w, "{")
-		for i := 0; i < t.Len(); i++ {
-			if i > 0 {
-				io.WriteString(w, ", ")
-				if short {
-					io.WriteString(w, "...")
+		if full && t.Len() > 1 {
+			io.WriteString(w, "\n")
+			ww := indent.New(w, []byte("    "))
+			for i := 0; i < t.Len(); i++ {
+				writeValue(ww, v.Index(i), false, full, allowDepth-1)
+				io.WriteString(ww, ",\n")
+			}
+		} else {
+			for i := 0; i < t.Len(); i++ {
+				if i > 0 {
+					io.WriteString(w, ", ...")
 					break
 				}
+				writeValue(w, v.Index(i), false, full, allowDepth-1)
 			}
-			writeValue(w, v.Index(i), false, short, allowDepth-1)
 		}
 		io.WriteString(w, "}")
 	case reflect.Struct:
 		if wantType {
 			writeType(w, t)
 		}
-		if allowDepth < 1 && t.NumField() > 0 {
+		if allowDepth < 2 && t.NumField() > 0 {
 			io.WriteString(w, "{...}")
 			break
 		}
 		io.WriteString(w, "{")
-		for i := 0; i < t.NumField(); i++ {
-			if i > 0 {
-				io.WriteString(w, ", ")
-				if short {
-					io.WriteString(w, "...")
+		if full && t.NumField() > 1 {
+			io.WriteString(w, "\n")
+			tw := tabwriter.NewWriter(w, 0, 8, 1, ' ', 0)
+			ww := indent.New(tw, []byte("    "))
+			for i := 0; i < t.NumField(); i++ {
+				io.WriteString(ww, t.Field(i).Name)
+				io.WriteString(ww, ":\t")
+				writeValue(ww, v.Field(i), false, full, allowDepth-1)
+				io.WriteString(ww, ",\n")
+			}
+			tw.Flush()
+		} else {
+			for i := 0; i < t.NumField(); i++ {
+				if i > 0 {
+					io.WriteString(w, ", ...")
 					break
 				}
+				io.WriteString(w, t.Field(i).Name)
+				io.WriteString(w, ":")
+				writeValue(w, v.Field(i), false, full, allowDepth-1)
 			}
-			io.WriteString(w, t.Field(i).Name)
-			io.WriteString(w, ":")
-			writeValue(w, v.Field(i), false, short, allowDepth-1)
 		}
 		io.WriteString(w, "}")
 	case reflect.Func:
@@ -81,7 +113,7 @@ func writeValue(w io.Writer, v reflect.Value, wantType, short bool, allowDepth i
 		}
 		fmt.Fprintf(w, "%v {...}", t)
 	case reflect.Interface:
-		writeValue(w, v.Elem(), true, short, allowDepth)
+		writeValue(w, v.Elem(), true, full, allowDepth)
 	case reflect.Map:
 		if v.IsNil() {
 			writeTypedNil(w, t, wantType)
@@ -90,26 +122,39 @@ func writeValue(w io.Writer, v reflect.Value, wantType, short bool, allowDepth i
 		if wantType {
 			writeType(w, t)
 		}
-		if allowDepth < 1 && v.Len() > 0 {
+		if allowDepth < 2 && v.Len() > 0 {
 			io.WriteString(w, "{...}")
 			break
 		}
 		io.WriteString(w, "{")
-		first := true
-		for _, mk := range sortedKeys(v) {
-			if !first {
-				io.WriteString(w, ", ")
-				if short {
-					io.WriteString(w, "...")
+
+		if full && v.Len() > 1 {
+			io.WriteString(w, "\n")
+			tw := tabwriter.NewWriter(w, 0, 8, 1, ' ', 0)
+			ww := indent.New(tw, []byte("    "))
+			for _, mk := range sortedKeys(v) {
+				mv := v.MapIndex(mk)
+				writeValue(ww, mk, false, full, 0)
+				io.WriteString(ww, ":\t")
+				writeValue(ww, mv, false, full, allowDepth-1)
+				io.WriteString(ww, ",\n")
+			}
+			tw.Flush()
+		} else {
+			first := true
+			for _, mk := range sortedKeys(v) {
+				if !first {
+					io.WriteString(w, ", ...")
 					break
 				}
+				first = false
+				mv := v.MapIndex(mk)
+				writeValue(w, mk, false, full, 0)
+				io.WriteString(w, ":")
+				writeValue(w, mv, false, full, allowDepth-1)
 			}
-			first = false
-			mv := v.MapIndex(mk)
-			writeValue(w, mk, false, short, 0)
-			io.WriteString(w, ":")
-			writeValue(w, mv, false, short, allowDepth-1)
 		}
+
 		io.WriteString(w, "}")
 	case reflect.Ptr:
 		if v.IsNil() {
@@ -124,7 +169,7 @@ func writeValue(w io.Writer, v reflect.Value, wantType, short bool, allowDepth i
 			// so show the type to be extra explicit.
 			wantType = true
 		}
-		writeValue(w, v.Elem(), wantType, short, allowDepth) // note: don't decrement allowDepth
+		writeValue(w, v.Elem(), wantType, full, allowDepth) // note: don't decrement allowDepth
 	case reflect.Slice:
 		if v.IsNil() {
 			writeTypedNil(w, t, wantType)
@@ -133,20 +178,30 @@ func writeValue(w io.Writer, v reflect.Value, wantType, short bool, allowDepth i
 		if wantType {
 			writeType(w, t)
 		}
-		if allowDepth < 1 && v.Len() > 0 {
+		if allowDepth < 2 && v.Len() > 0 {
 			io.WriteString(w, "{...}")
 			break
 		}
 		io.WriteString(w, "{")
-		for i := 0; i < v.Len(); i++ {
-			if i > 0 {
-				io.WriteString(w, ", ")
-				if short {
-					io.WriteString(w, "...")
-					break
-				}
+
+		if full && v.Len() > 1 {
+			io.WriteString(w, "\n")
+			ww := indent.New(w, []byte("    "))
+			for i := 0; i < v.Len(); i++ {
+				writeValue(ww, v.Index(i), false, full, allowDepth-1)
+				io.WriteString(ww, ",\n")
 			}
-			writeValue(w, v.Index(i), false, short, allowDepth-1)
+		} else {
+			for i := 0; i < v.Len(); i++ {
+				if i > 0 {
+					io.WriteString(w, ", ")
+					if !full {
+						io.WriteString(w, "...")
+						break
+					}
+				}
+				writeValue(w, v.Index(i), false, full, allowDepth-1)
+			}
 		}
 		io.WriteString(w, "}")
 	case reflect.Bool:
