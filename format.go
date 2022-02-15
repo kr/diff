@@ -10,6 +10,8 @@ import (
 	"kr.dev/diff/internal/indent"
 )
 
+const tab = "\u00a0\u00a0\u00a0\u00a0" // U+00A0 NO-BREAK SPACE
+
 var reflectAny = reflect.TypeOf((*any)(nil)).Elem()
 
 func formatShort(v reflect.Value, wantType bool) fmt.Formatter {
@@ -43,7 +45,7 @@ type formatter struct {
 func (f *formatter) Format(fs fmt.State, verb rune) {
 	var w io.Writer = fs
 	if f.full {
-		w = indent.New(w, []byte("    "))
+		w = indent.New(w, tab)
 	}
 	f.writeTo(w, f.root, f.wantType, 1)
 }
@@ -81,7 +83,7 @@ func (f *formatter) writeTo(w io.Writer, v reflect.Value, wantType bool, depth i
 		io.WriteString(w, "{")
 		if f.full && t.Len() > 1 {
 			io.WriteString(w, "\n")
-			ww := indent.New(w, []byte("    "))
+			ww := indent.New(w, tab)
 			for i := 0; i < t.Len(); i++ {
 				f.writeTo(ww, v.Index(i), false, depth+1)
 				io.WriteString(ww, ",\n")
@@ -108,7 +110,7 @@ func (f *formatter) writeTo(w io.Writer, v reflect.Value, wantType bool, depth i
 		if f.full && t.NumField() > 1 {
 			io.WriteString(w, "\n")
 			tw := tabwriter.NewWriter(w, 0, 8, 1, ' ', 0)
-			ww := indent.New(tw, []byte("    "))
+			ww := indent.New(tw, tab)
 			for i := 0; i < t.NumField(); i++ {
 				io.WriteString(ww, t.Field(i).Name)
 				io.WriteString(ww, ":\t")
@@ -153,7 +155,7 @@ func (f *formatter) writeTo(w io.Writer, v reflect.Value, wantType bool, depth i
 		if f.full && v.Len() > 1 {
 			io.WriteString(w, "\n")
 			tw := tabwriter.NewWriter(w, 0, 8, 1, ' ', 0)
-			ww := indent.New(tw, []byte("    "))
+			ww := indent.New(tw, tab)
 			for _, mk := range sortedKeys(v) {
 				mv := v.MapIndex(mk)
 				f.writeTo(ww, mk, false, 0)
@@ -208,7 +210,7 @@ func (f *formatter) writeTo(w io.Writer, v reflect.Value, wantType bool, depth i
 
 		if f.full && v.Len() > 1 {
 			io.WriteString(w, "\n")
-			ww := indent.New(w, []byte("    "))
+			ww := indent.New(w, tab)
 			for i := 0; i < v.Len(); i++ {
 				f.writeTo(ww, v.Index(i), false, depth+1)
 				io.WriteString(ww, ",\n")

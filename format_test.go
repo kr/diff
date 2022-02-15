@@ -247,23 +247,47 @@ func TestWriteFull(t *testing.T) {
 		v    any
 		want string
 	}{
-		{[0]int{}, "    [0]int{}"},
-		{[1]int{}, "    [1]int{0}"},
-		{[2]int{}, "    [2]int{\n        0,\n        0,\n    }"},
+		{[0]int{}, tab + "[0]int{}"},
+		{[1]int{}, tab + "[1]int{0}"},
+		{[2]int{}, tab + "[2]int{\n" +
+			tab + tab + "0,\n" +
+			tab + tab + "0,\n" +
+			tab + "}",
+		},
 
-		{Struct0{}, "    diff.Struct0{}"},
-		{Struct1{0}, "    diff.Struct1{A:0}"},
-		{Struct2{0, 1}, "    diff.Struct2{\n        A:  0,\n        BB: 1,\n    }"},
+		{Struct0{}, tab + "diff.Struct0{}"},
+		{Struct1{0}, tab + "diff.Struct1{A:0}"},
+		{Struct2{0, 1}, tab + "diff.Struct2{\n" +
+			tab + tab + "A:  0,\n" +
+			tab + tab + "BB: 1,\n" +
+			tab + "}",
+		},
 
-		{map[int]int{}, "    map[int]int{}"},
-		{map[int]int{0: 0}, "    map[int]int{0:0}"},
-		{map[int]int{0: 0, 1: 1}, "    map[int]int{\n        0: 0,\n        1: 1,\n    }"},
-		{map[int]int{0: 0, 1: 1}, "    map[int]int{\n        0: 0,\n        1: 1,\n    }"},
-		{map[int]int{0: 0, 10: 1}, "    map[int]int{\n        0:  0,\n        10: 1,\n    }"},
+		{map[int]int{}, tab + "map[int]int{}"},
+		{map[int]int{0: 0}, tab + "map[int]int{0:0}"},
+		{map[int]int{0: 0, 1: 1}, tab + "map[int]int{\n" +
+			tab + tab + "0: 0,\n" +
+			tab + tab + "1: 1,\n" +
+			tab + "}",
+		},
+		{map[int]int{0: 0, 1: 1}, tab + "map[int]int{\n" +
+			tab + tab + "0: 0,\n" +
+			tab + tab + "1: 1,\n" +
+			tab + "}",
+		},
+		{map[int]int{0: 0, 10: 1}, tab + "map[int]int{\n" +
+			tab + tab + "0:  0,\n" +
+			tab + tab + "10: 1,\n" +
+			tab + "}",
+		},
 
-		{[]int{}, "    []int{}"},
-		{[]int{0}, "    []int{0}"},
-		{[]int{0, 0}, "    []int{\n        0,\n        0,\n    }"},
+		{[]int{}, tab + "[]int{}"},
+		{[]int{0}, tab + "[]int{0}"},
+		{[]int{0, 0}, tab + "[]int{\n" +
+			tab + tab + "0,\n" +
+			tab + tab + "0,\n" +
+			tab + "}",
+		},
 	}
 
 	for i, tt := range cases {
@@ -279,16 +303,6 @@ func TestWriteFull(t *testing.T) {
 	}
 }
 
-const wantCycle = `
-    &diff.T{
-        N: 1,
-        P: {
-            N: 2,
-            P: ...,
-        },
-    }
-`
-
 func TestWriteCycle(t *testing.T) {
 	type T struct {
 		N int
@@ -299,10 +313,17 @@ func TestWriteCycle(t *testing.T) {
 	v1 := &T{N: 1, P: v2}
 	v2.P = v1
 
-	want := wantCycle[1 : len(wantCycle)-1]
-
 	rv := reflect.ValueOf(v1)
 	got := fmt.Sprint(formatFull(rv))
+
+	const want = tab + "&diff.T{\n" +
+		tab + tab + "N: 1,\n" +
+		tab + tab + "P: {\n" +
+		tab + tab + tab + "N: 2,\n" +
+		tab + tab + tab + "P: ...,\n" +
+		tab + tab + "},\n" +
+		tab + "}"
+
 	if got != want {
 		t.Errorf("bad formatFull(%#v)", v1)
 		t.Logf("got:\n%s", got)

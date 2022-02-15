@@ -7,11 +7,11 @@ import (
 
 type writer struct {
 	w      io.Writer
-	prefix []byte
+	prefix string
 	bol    bool
 }
 
-func New(w io.Writer, prefix []byte) io.Writer {
+func New(w io.Writer, prefix string) io.Writer {
 	return &writer{
 		w:      w,
 		prefix: prefix,
@@ -22,7 +22,7 @@ func New(w io.Writer, prefix []byte) io.Writer {
 func (w *writer) Write(p []byte) (written int, err error) {
 	for len(p) > 0 {
 		if w.bol {
-			_, err := w.w.Write(w.prefix)
+			_, err := io.WriteString(w.w, w.prefix)
 			w.bol = false
 			if err != nil {
 				return written, err
