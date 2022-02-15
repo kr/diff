@@ -14,7 +14,7 @@ var reflectAny = reflect.TypeOf((*any)(nil)).Elem()
 
 func formatShort(v reflect.Value, wantType bool) fmt.Formatter {
 	return &formatter{
-		v:          v,
+		root:       v,
 		wantType:   wantType,
 		full:       false,
 		allowDepth: 2,
@@ -23,7 +23,7 @@ func formatShort(v reflect.Value, wantType bool) fmt.Formatter {
 
 func formatFull(v reflect.Value) fmt.Formatter {
 	return &formatter{
-		v:          v,
+		root:       v,
 		wantType:   true,
 		full:       true,
 		allowDepth: 1e8,
@@ -31,7 +31,7 @@ func formatFull(v reflect.Value) fmt.Formatter {
 }
 
 type formatter struct {
-	v          reflect.Value
+	root       reflect.Value
 	wantType   bool
 	full       bool
 	allowDepth int
@@ -42,10 +42,10 @@ func (f *formatter) Format(fs fmt.State, verb rune) {
 	if f.full {
 		w = indent.New(w, []byte("    "))
 	}
-	writeValue(w, f.v, f.wantType, f.full, f.allowDepth)
+	f.writeTo(w, f.root, f.wantType, 1)
 }
 
-func writeValue(w io.Writer, v reflect.Value, wantType, full bool, allowDepth int) {
+func (f *formatter) writeTo(w io.Writer, v reflect.Value, wantType bool, depth int) {
 	// TODO(kr): detect recursion
 	if !v.IsValid() {
 		io.WriteString(w, "nil") // untyped nil
@@ -56,16 +56,16 @@ func writeValue(w io.Writer, v reflect.Value, wantType, full bool, allowDepth in
 		if wantType {
 			writeType(w, t)
 		}
-		if allowDepth < 2 && t.Len() > 0 {
+		if depth >= f.allowDepth && t.Len() > 0 {
 			io.WriteString(w, "{...}")
 			break
 		}
 		io.WriteString(w, "{")
-		if full && t.Len() > 1 {
+		if f.full && t.Len() > 1 {
 			io.WriteString(w, "\n")
 			ww := indent.New(w, []byte("    "))
 			for i := 0; i < t.Len(); i++ {
-				writeValue(ww, v.Index(i), false, full, allowDepth-1)
+				f.writeTo(ww, v.Index(i), false, depth+1)
 				io.WriteString(ww, ",\n")
 			}
 		} else {
@@ -74,7 +74,7 @@ func writeValue(w io.Writer, v reflect.Value, wantType, full bool, allowDepth in
 					io.WriteString(w, ", ...")
 					break
 				}
-				writeValue(w, v.Index(i), false, full, allowDepth-1)
+				f.writeTo(w, v.Index(i), false, depth+1)
 			}
 		}
 		io.WriteString(w, "}")
@@ -82,19 +82,19 @@ func writeValue(w io.Writer, v reflect.Value, wantType, full bool, allowDepth in
 		if wantType {
 			writeType(w, t)
 		}
-		if allowDepth < 2 && t.NumField() > 0 {
+		if depth >= f.allowDepth && t.NumField() > 0 {
 			io.WriteString(w, "{...}")
 			break
 		}
 		io.WriteString(w, "{")
-		if full && t.NumField() > 1 {
+		if f.full && t.NumField() > 1 {
 			io.WriteString(w, "\n")
 			tw := tabwriter.NewWriter(w, 0, 8, 1, ' ', 0)
 			ww := indent.New(tw, []byte("    "))
 			for i := 0; i < t.NumField(); i++ {
 				io.WriteString(ww, t.Field(i).Name)
 				io.WriteString(ww, ":\t")
-				writeValue(ww, v.Field(i), false, full, allowDepth-1)
+				f.writeTo(ww, v.Field(i), false, depth+1)
 				io.WriteString(ww, ",\n")
 			}
 			tw.Flush()
@@ -106,7 +106,7 @@ func writeValue(w io.Writer, v reflect.Value, wantType, full bool, allowDepth in
 				}
 				io.WriteString(w, t.Field(i).Name)
 				io.WriteString(w, ":")
-				writeValue(w, v.Field(i), false, full, allowDepth-1)
+				f.writeTo(w, v.Field(i), false, depth+1)
 			}
 		}
 		io.WriteString(w, "}")
@@ -117,7 +117,7 @@ func writeValue(w io.Writer, v reflect.Value, wantType, full bool, allowDepth in
 		}
 		fmt.Fprintf(w, "%v {...}", t)
 	case reflect.Interface:
-		writeValue(w, v.Elem(), true, full, allowDepth)
+		f.writeTo(w, v.Elem(), true, depth)
 	case reflect.Map:
 		if v.IsNil() {
 			writeTypedNil(w, t, wantType)
@@ -126,21 +126,21 @@ func writeValue(w io.Writer, v reflect.Value, wantType, full bool, allowDepth in
 		if wantType {
 			writeType(w, t)
 		}
-		if allowDepth < 2 && v.Len() > 0 {
+		if depth >= f.allowDepth && v.Len() > 0 {
 			io.WriteString(w, "{...}")
 			break
 		}
 		io.WriteString(w, "{")
 
-		if full && v.Len() > 1 {
+		if f.full && v.Len() > 1 {
 			io.WriteString(w, "\n")
 			tw := tabwriter.NewWriter(w, 0, 8, 1, ' ', 0)
 			ww := indent.New(tw, []byte("    "))
 			for _, mk := range sortedKeys(v) {
 				mv := v.MapIndex(mk)
-				writeValue(ww, mk, false, full, 0)
+				f.writeTo(ww, mk, false, 0)
 				io.WriteString(ww, ":\t")
-				writeValue(ww, mv, false, full, allowDepth-1)
+				f.writeTo(ww, mv, false, depth+1)
 				io.WriteString(ww, ",\n")
 			}
 			tw.Flush()
@@ -153,9 +153,9 @@ func writeValue(w io.Writer, v reflect.Value, wantType, full bool, allowDepth in
 				}
 				first = false
 				mv := v.MapIndex(mk)
-				writeValue(w, mk, false, full, 0)
+				f.writeTo(w, mk, false, 0)
 				io.WriteString(w, ":")
-				writeValue(w, mv, false, full, allowDepth-1)
+				f.writeTo(w, mv, false, depth+1)
 			}
 		}
 
@@ -173,7 +173,7 @@ func writeValue(w io.Writer, v reflect.Value, wantType, full bool, allowDepth in
 			// so show the type to be extra explicit.
 			wantType = true
 		}
-		writeValue(w, v.Elem(), wantType, full, allowDepth) // note: don't decrement allowDepth
+		f.writeTo(w, v.Elem(), wantType, depth) // note: don't increment depth
 	case reflect.Slice:
 		if v.IsNil() {
 			writeTypedNil(w, t, wantType)
@@ -182,29 +182,29 @@ func writeValue(w io.Writer, v reflect.Value, wantType, full bool, allowDepth in
 		if wantType {
 			writeType(w, t)
 		}
-		if allowDepth < 2 && v.Len() > 0 {
+		if depth >= f.allowDepth && v.Len() > 0 {
 			io.WriteString(w, "{...}")
 			break
 		}
 		io.WriteString(w, "{")
 
-		if full && v.Len() > 1 {
+		if f.full && v.Len() > 1 {
 			io.WriteString(w, "\n")
 			ww := indent.New(w, []byte("    "))
 			for i := 0; i < v.Len(); i++ {
-				writeValue(ww, v.Index(i), false, full, allowDepth-1)
+				f.writeTo(ww, v.Index(i), false, depth+1)
 				io.WriteString(ww, ",\n")
 			}
 		} else {
 			for i := 0; i < v.Len(); i++ {
 				if i > 0 {
 					io.WriteString(w, ", ")
-					if !full {
+					if !f.full {
 						io.WriteString(w, "...")
 						break
 					}
 				}
-				writeValue(w, v.Index(i), false, full, allowDepth-1)
+				f.writeTo(w, v.Index(i), false, depth+1)
 			}
 		}
 		io.WriteString(w, "}")
