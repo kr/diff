@@ -13,6 +13,8 @@ import (
 	"kr.dev/diff"
 )
 
+const tab = "\u00a0\u00a0\u00a0\u00a0"
+
 var NaN = math.NaN()
 
 func TestEqual(t *testing.T) {
@@ -225,7 +227,13 @@ func TestFullRoot(t *testing.T) {
 		got += fmt.Sprintf(format, arg...)
 	}
 	diff.Each(f, nil, b, diff.EmitFull)
-	want := "(A)\n    nil\n(B)\n    &diff_test.T{\n        A:  2,\n        BB: 4,\n    }\n"
+	want := "(A)\n" +
+		tab + "nil\n" +
+		"(B)\n" +
+		tab + "&diff_test.T{\n" +
+		tab + tab + "A:  2,\n" +
+		tab + tab + "BB: 4,\n" +
+		tab + "}\n"
 	if got != want {
 		t.Errorf("bad diff")
 		t.Logf("got:\n%s", got)
@@ -242,7 +250,14 @@ func TestFullField(t *testing.T) {
 		got += fmt.Sprintf(format, arg...)
 	}
 	diff.Each(f, &C{}, &C{T: b}, diff.EmitFull)
-	want := "diff_test.C.T:\n(A)\n    (*diff_test.T)(nil)\n(B)\n    &diff_test.T{\n        A:  2,\n        BB: 4,\n    }\n"
+	want := "diff_test.C.T:\n" +
+		"(A)\n" +
+		tab + "(*diff_test.T)(nil)\n" +
+		"(B)\n" +
+		tab + "&diff_test.T{\n" +
+		tab + tab + "A:  2,\n" +
+		tab + tab + "BB: 4,\n" +
+		tab + "}\n"
 	if got != want {
 		t.Errorf("bad diff")
 		t.Logf("got:\n%s", got)

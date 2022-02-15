@@ -7,7 +7,7 @@ import (
 
 func TestIndentPart(t *testing.T) {
 	var buf bytes.Buffer
-	w := New(&buf, []byte("aaa"))
+	w := New(&buf, "aaa")
 	n, err := w.Write([]byte("bbb"))
 	if n != 3 {
 		t.Errorf("n = %d, want 3", n)
@@ -24,7 +24,7 @@ func TestIndentPart(t *testing.T) {
 
 func TestIndentFull(t *testing.T) {
 	var buf bytes.Buffer
-	w := New(&buf, []byte("aaa"))
+	w := New(&buf, "aaa")
 	n, err := w.Write([]byte("bbb\n"))
 	if n != 4 {
 		t.Errorf("n = %d, want 4", n)
@@ -41,7 +41,7 @@ func TestIndentFull(t *testing.T) {
 
 func TestIndentMultiPart(t *testing.T) {
 	var buf bytes.Buffer
-	w := New(&buf, []byte("aaa"))
+	w := New(&buf, "aaa")
 	n, err := w.Write([]byte("bbb\nccc"))
 	if n != 7 {
 		t.Errorf("n = %d, want 7", n)
@@ -58,7 +58,7 @@ func TestIndentMultiPart(t *testing.T) {
 
 func TestIndentMultiFull(t *testing.T) {
 	var buf bytes.Buffer
-	w := New(&buf, []byte("aaa"))
+	w := New(&buf, "aaa")
 	n, err := w.Write([]byte("bbb\nccc\n"))
 	if n != 8 {
 		t.Errorf("n = %d, want 8", n)
@@ -75,7 +75,7 @@ func TestIndentMultiFull(t *testing.T) {
 
 func TestIndentMultiCallPart(t *testing.T) {
 	var buf bytes.Buffer
-	w := New(&buf, []byte("aaa"))
+	w := New(&buf, "aaa")
 	n, err := w.Write([]byte("bb"))
 	if n != 2 {
 		t.Errorf("n = %d, want 2", n)
@@ -99,7 +99,7 @@ func TestIndentMultiCallPart(t *testing.T) {
 
 func TestIndentMultiCallFull(t *testing.T) {
 	var buf bytes.Buffer
-	w := New(&buf, []byte("aaa"))
+	w := New(&buf, "aaa")
 	n, err := w.Write([]byte("bbb\n"))
 	if n != 4 {
 		t.Errorf("n = %d, want 4", n)
