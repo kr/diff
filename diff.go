@@ -351,7 +351,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 		if t.ConvertibleTo(reflectBytes) {
 			as := av.Convert(reflectString)
 			bs := bv.Convert(reflectString)
-			stringDiff(e, av, bv, as.String(), bs.String())
+			d.stringDiff(e, av, bv, as.String(), bs.String())
 			break
 		}
 		// TODO(kr): fancy diff (histogram, myers)
@@ -376,7 +376,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	case reflect.Complex64, reflect.Complex128:
 		d.eqtest(e, av, bv, av.Complex(), bv.Complex(), wantType)
 	case reflect.String:
-		stringDiff(e, av, bv, av.String(), bv.String())
+		d.stringDiff(e, av, bv, av.String(), bv.String())
 	case reflect.Chan, reflect.UnsafePointer:
 		if a, b := av.Pointer(), bv.Pointer(); a != b {
 			d.emitPointers(e, av, bv, wantType)
@@ -416,7 +416,9 @@ func (d *differ) emitPointers(e emitfer, av, bv reflect.Value, wantType bool) {
 	)
 }
 
-func stringDiff(e emitfer, av, bv reflect.Value, a, b string) {
+func (d *differ) stringDiff(e emitfer, av, bv reflect.Value, a, b string) {
+	d.config.helper()
+
 	if a == b {
 		return
 	}
@@ -428,7 +430,7 @@ func stringDiff(e emitfer, av, bv reflect.Value, a, b string) {
 		return
 	}
 
-	textDiff(e, av, bv, a, b)
+	d.textDiff(e, av, bv, a, b)
 }
 
 func sortedKeys(maps ...reflect.Value) []reflect.Value {
