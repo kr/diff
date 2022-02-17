@@ -8,7 +8,9 @@ import (
 	"github.com/pkg/diff"
 )
 
-func textDiff(e emitfer, av, bv reflect.Value, a, b string) {
+func (d *differ) textDiff(e emitfer, av, bv reflect.Value, a, b string) {
+	d.config.helper()
+
 	// TODO(kr): check for whitespace-only changes, use special format
 
 	// Check for short strings.
