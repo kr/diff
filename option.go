@@ -71,9 +71,6 @@ var (
 	// and a full representation of both values
 	// at that position, pretty-printed on multiple
 	// lines with indentation.
-	// It calls the output function twice for each
-	// difference, once each for values A and B.
-	// It does not use registered format functions.
 	EmitFull Option = verbosity(full)
 )
 
