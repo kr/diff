@@ -30,7 +30,7 @@ func testStringDiff(t *testing.T, want string, a, b any) {
 	t.Helper()
 	var got string
 	f := func(format string, arg ...any) {
-		got = fmt.Sprintf(format, arg...)
+		got += fmt.Sprintf(format, arg...)
 	}
 	diff.Each(f, a, b)
 	if got != want {
@@ -128,24 +128,13 @@ const linesMyers = `--- a
 
 `
 
-const wordsA = `The quick brown fox jumped over the lazy dog's tail.`
-const wordsB = `The quick brown fox jumps over the lazy dog.`
+const wordsA = `The brown fox jumped over the lazy dog's tail.`
+const wordsB = `The quick brown fox jumps over lazy dog.`
 
-const wordsMyers = `--- a
-+++ b
-@@ -2,9 +2,8 @@
- quick 
- brown 
- fox 
--jumped 
-+jumps 
- over 
- the 
- lazy 
--dog's 
--tail.
-+dog.
-
+const wordsMyers = `string[4:4]: "" != "quick "
+string[14:21]: "jumped " != "jumps "
+string[26:30]: "the " != ""
+string[35:46]: "dog's tail." != "dog."
 `
 
 const (
