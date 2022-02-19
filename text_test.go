@@ -26,6 +26,10 @@ func TestTextShort(t *testing.T) {
 	testStringDiff(t, shortDiff, shortA, shortB)
 }
 
+func TestTextRunes(t *testing.T) {
+	testStringDiff(t, runesMyers, runesA, runesB)
+}
+
 func testStringDiff(t *testing.T, want string, a, b any) {
 	t.Helper()
 	var got string
@@ -141,4 +145,14 @@ const (
 	shortA    = `Wherever you go,`
 	shortB    = `there you are.`
 	shortDiff = `"Wherever you go," != "there you are."` + "\n"
+)
+
+const (
+	runesA = "cqf8vNoIhmGwXgajTst/OKqkm9M"
+	runesB = "cqf8vNoInmGwXgojTst/OKqkm9M="
+
+	runesMyers = `string[8:9]: "h" != "n"
+string[14:15]: "a" != "o"
+string[27:27]: "" != "="
+`
 )

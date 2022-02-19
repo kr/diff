@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/pkg/diff"
 	"github.com/pkg/diff/myers"
@@ -34,18 +35,19 @@ func (d *differ) textDiff(e emitfer, av, bv reflect.Value, a, b string) {
 
 	// Check for multi-word.
 	if textCheck(a, " ", 3, 10) && textCheck(b, " ", 3, 10) {
-		textDiffWords(e, av, bv, a, b)
+		as := strings.SplitAfter(a, " ")
+		bs := strings.SplitAfter(b, " ")
+		textDiffInline(e, av, bv, a, b, as, bs)
 		return
 	}
 
-	// Last resort is byte-by-byte.
-	// TODO(kr): inline results like multi-word? something
-	e.emitf(av, bv, "%+q != %+q", a, b)
+	// Last resort is rune-by-rune.
+	as := splitRunes(a)
+	bs := splitRunes(b)
+	textDiffInline(e, av, bv, a, b, as, bs)
 }
 
-func textDiffWords(e emitfer, av, bv reflect.Value, a, b string) {
-	as := strings.SplitAfter(a, " ")
-	bs := strings.SplitAfter(b, " ")
+func textDiffInline(e emitfer, av, bv reflect.Value, a, b string, as, bs []string) {
 	acut := accum(as)
 	bcut := accum(bs)
 	pair := &slicePair[string]{a: as, b: bs}
@@ -84,4 +86,13 @@ func accum(a []string) (is []int) {
 		is = append(is, n)
 	}
 	return is
+}
+
+func splitRunes(s string) (a []string) {
+	for s != "" {
+		r, n := utf8.DecodeRuneInString(s)
+		s = s[n:]
+		a = append(a, string(r))
+	}
+	return a
 }
