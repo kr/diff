@@ -219,6 +219,28 @@ func TestPath(t *testing.T) {
 	}
 }
 
+func TestFullRootTest(t *testing.T) {
+	type T struct{ A, BB int }
+	b := &T{A: 2, BB: 4}
+	var got string
+	f := func(format string, arg ...any) {
+		got += fmt.Sprintf(format, arg...)
+	}
+	diff.Test(t, f, nil, b, diff.EmitFull)
+	want := "any:\ngot:\n" +
+		tab + "nil\n" +
+		"want:\n" +
+		tab + "&diff_test.T{\n" +
+		tab + tab + "A:  2,\n" +
+		tab + tab + "BB: 4,\n" +
+		tab + "}\n"
+	if got != want {
+		t.Errorf("bad diff")
+		t.Logf("got:\n%s", got)
+		t.Logf("want:\n%s", want)
+	}
+}
+
 func TestFullRoot(t *testing.T) {
 	type T struct{ A, BB int }
 	b := &T{A: 2, BB: 4}
@@ -227,9 +249,9 @@ func TestFullRoot(t *testing.T) {
 		got += fmt.Sprintf(format, arg...)
 	}
 	diff.Each(f, nil, b, diff.EmitFull)
-	want := "(A)\n" +
+	want := "a:\n" +
 		tab + "nil\n" +
-		"(B)\n" +
+		"b:\n" +
 		tab + "&diff_test.T{\n" +
 		tab + tab + "A:  2,\n" +
 		tab + tab + "BB: 4,\n" +
@@ -250,10 +272,10 @@ func TestFullField(t *testing.T) {
 		got += fmt.Sprintf(format, arg...)
 	}
 	diff.Each(f, &C{}, &C{T: b}, diff.EmitFull)
-	want := "diff_test.C.T:\n" +
-		"(A)\n" +
+	want := "diff_test.C:\n" +
+		"a.T:\n" +
 		tab + "(*diff_test.T)(nil)\n" +
-		"(B)\n" +
+		"b.T:\n" +
 		tab + "&diff_test.T{\n" +
 		tab + tab + "A:  2,\n" +
 		tab + tab + "BB: 4,\n" +
