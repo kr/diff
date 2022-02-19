@@ -50,7 +50,6 @@ var (
 	// maximum verbosity.
 	Picky Option = OptionList(
 		EmitFull,
-		EqualFuncs(false),
 		TransformRemove[time.Time](),
 		FormatRemove[time.Time](),
 	)
@@ -113,7 +112,7 @@ func verbosity(n level) Option {
 // are treated as equal;
 // otherwise, two non-nil functions are treated as unequal,
 // even if they point to the same location in code.
-// EqualFuncs(false) matches the behavior of the built-in == operator.
+// Note that EqualFuncs(false) matches the behavior of the built-in == operator.
 func EqualFuncs(b bool) Option {
 	return Option{func(c *config) {
 		c.equalFuncs = b
