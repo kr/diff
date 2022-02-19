@@ -56,7 +56,7 @@ func Log(a, b any, opt ...Option) {
 	d.each(a, b)
 }
 
-// Test compares values a and b, calling f for each difference it finds.
+// Test compares values got and want, calling f for each difference it finds.
 // By default, its conditions for equality are like reflect.DeepEqual.
 //
 //
@@ -68,10 +68,13 @@ func Log(a, b any, opt ...Option) {
 // The behavior can be adjusted by supplying Option values.
 // See Default for a complete list of default options.
 // Values in opt apply in addition to (and override) the defaults.
-func Test(h Helperer, f func(format string, arg ...any), a, b any, opt ...Option) {
+func Test(h Helperer, f func(format string, arg ...any), got, want any, opt ...Option) {
 	h.Helper()
 	d := newDiffer(h.Helper, f, opt...)
-	d.each(a, b)
+	d.config.inTest = true
+	d.config.aLabel = "got"
+	d.config.bLabel = "want"
+	d.each(got, want)
 }
 
 // Helperer marks the caller as a helper function.
@@ -106,6 +109,10 @@ type config struct {
 
 	helper func()
 	output Outputter
+
+	inTest bool
+	aLabel string
+	bLabel string
 }
 
 type visit struct {
@@ -120,9 +127,10 @@ type emitfer interface {
 }
 
 type printEmitter struct {
-	config config // not pointer, printEmitters have different configs
-	path   []string
-	did    bool
+	config   config // not pointer, printEmitters have different configs
+	rootType string
+	path     []string
+	did      bool
 }
 
 func (e *printEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
@@ -134,32 +142,38 @@ func (e *printEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
 		if len(e.path) > 0 {
 			p = strings.Join(e.path, "") + ": "
 		}
-		arg = append([]any{p}, arg...)
-		e.config.sink("%s"+format+"\n", arg...)
+		arg = append([]any{e.rootType, p}, arg...)
+		e.config.sink("%s%s"+format+"\n", arg...)
 	case pathOnly:
-		e.config.sink("%s\n", strings.Join(e.path, ""))
+		e.config.sink("%s%s\n", e.rootType, strings.Join(e.path, ""))
 	case full:
-		var p string
-		if len(e.path) > 0 {
-			p = strings.Join(e.path, "") + ":\n"
+		var t string
+		if e.rootType != "" {
+			t = e.rootType + ":\n"
+		} else if e.config.inTest {
+			t = "any:\n"
 		}
-		e.config.sink("%s(A)\n%#v\n(B)\n%#v\n", p, formatFull(av), formatFull(bv))
+		p := strings.Join(e.path, "")
+		e.config.sink("%s%s%s:\n%#v\n%s%s:\n%#v\n", t,
+			e.config.aLabel, p, formatFull(av),
+			e.config.bLabel, p, formatFull(bv),
+		)
 	default:
 		panic("diff: bad verbose level")
 	}
 }
 
 func (e *printEmitter) subf(t reflect.Type, format string, arg ...any) emitfer {
-	path := e.path
-	if len(e.path) < 1 {
+	if e.rootType == "" {
 		var buf bytes.Buffer
 		writeType(&buf, t)
-		path = []string{buf.String()}
+		e.rootType = buf.String()
 	}
 	pe := &printEmitter{
-		config: e.config,
-		path:   append(path, fmt.Sprintf(format, arg...)),
-		did:    false,
+		config:   e.config,
+		rootType: e.rootType,
+		path:     append(e.path, fmt.Sprintf(format, arg...)),
+		did:      false,
 	}
 	pe.config.sink = func(format string, a ...any) {
 		e.config.helper()
@@ -202,6 +216,8 @@ func newDiffer(h func(), f func(format string, arg ...any), opt ...Option) *diff
 	d.config.helper = h
 	d.config.xform = map[reflect.Type]reflect.Value{}
 	d.config.format = map[reflect.Type]reflect.Value{}
+	d.config.aLabel = "a"
+	d.config.bLabel = "b"
 	OptionList(defaultOpt, OptionList(opt...)).apply(&d.config)
 	return d
 }
