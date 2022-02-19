@@ -1,7 +1,6 @@
 package diff_test
 
 import (
-	"fmt"
 	"testing"
 
 	"kr.dev/diff"
@@ -33,10 +32,8 @@ func TestTextRunes(t *testing.T) {
 func testStringDiff(t *testing.T, want string, a, b any) {
 	t.Helper()
 	var got string
-	f := func(format string, arg ...any) {
-		got += fmt.Sprintf(format, arg...)
-	}
-	diff.Each(f, a, b)
+	gotp := (*stringPrinter)(&got)
+	diff.Each(gotp.Printf, a, b)
 	if got != want {
 		t.Errorf("bad diff")
 		t.Logf("got:\n%s", got)

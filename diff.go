@@ -28,17 +28,14 @@ var (
 // The behavior can be adjusted by supplying Option values.
 // See Default for a complete list of default options.
 // Values in opt apply in addition to (and override) the defaults.
-func Each(f func(format string, arg ...any), a, b any, opt ...Option) {
-	d := newDiffer(func() {}, f, opt...)
+func Each(f func(format string, arg ...any) (int, error), a, b any, opt ...Option) {
+	fdis := func(format string, arg ...any) { f(format, arg...) }
+	d := newDiffer(func() {}, fdis, opt...)
 	d.each(a, b)
 }
 
 // Log compares values a and b, printing each difference to its logger.
 // By default, its conditions for equality are like reflect.DeepEqual.
-//
-// Log provides a calldepth argument to its logger to show the file
-// and line number of the call to Log. This is usually preferable to
-// passing log.Printf to Each.
 //
 // The default logger object is log.Default().
 // It can be set using the Logger option.
