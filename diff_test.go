@@ -209,11 +209,9 @@ func TestPath(t *testing.T) {
 	a := &T{N: 1}
 	b := &T{N: 2}
 	var got string
-	f := func(format string, arg ...any) {
-		got = strings.TrimSpace(fmt.Sprintf(format, arg...))
-	}
-	diff.Each(f, a, b, diff.EmitPathOnly)
-	want := `diff_test.T.N`
+	gotp := (*stringPrinter)(&got)
+	diff.Each(gotp.Printf, a, b, diff.EmitPathOnly)
+	want := "diff_test.T.N\n"
 	if got != want {
 		t.Errorf("diff path = %q, want %q", got, want)
 	}
@@ -245,10 +243,8 @@ func TestFullRoot(t *testing.T) {
 	type T struct{ A, BB int }
 	b := &T{A: 2, BB: 4}
 	var got string
-	f := func(format string, arg ...any) {
-		got += fmt.Sprintf(format, arg...)
-	}
-	diff.Each(f, nil, b, diff.EmitFull)
+	gotp := (*stringPrinter)(&got)
+	diff.Each(gotp.Printf, nil, b, diff.EmitFull)
 	want := "a:\n" +
 		tab + "nil\n" +
 		"b:\n" +
@@ -268,10 +264,8 @@ func TestFullField(t *testing.T) {
 	type C struct{ T *T }
 	b := &T{A: 2, BB: 4}
 	var got string
-	f := func(format string, arg ...any) {
-		got += fmt.Sprintf(format, arg...)
-	}
-	diff.Each(f, &C{}, &C{T: b}, diff.EmitFull)
+	gotp := (*stringPrinter)(&got)
+	diff.Each(gotp.Printf, &C{}, &C{T: b}, diff.EmitFull)
 	want := "diff_test.C:\n" +
 		"a.T:\n" +
 		tab + "(*diff_test.T)(nil)\n" +
@@ -377,4 +371,12 @@ func testUnequal(t *testing.T, a, b any) {
 
 func ptr[T any](v T) *T {
 	return &v
+}
+
+type stringPrinter string
+
+func (sp *stringPrinter) Printf(format string, arg ...any) (int, error) {
+	s := fmt.Sprintf(format, arg...)
+	*(*string)(sp) += s
+	return len(s), nil
 }
