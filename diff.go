@@ -35,10 +35,10 @@ func Each(f func(format string, arg ...any) (int, error), a, b any, opt ...Optio
 }
 
 // Log compares values a and b, printing each difference to its logger.
-// By default, its conditions for equality are like reflect.DeepEqual.
+// By default, its logger object is log.Default()
+// and its conditions for equality are like reflect.DeepEqual.
 //
-// The default logger object is log.Default().
-// It can be set using the Logger option.
+// The logger can be set using the Logger option.
 // The behavior can also be adjusted by supplying other Option values.
 // See Default for a complete list of default options.
 // Values in opt apply in addition to (and override) the defaults.
