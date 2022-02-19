@@ -20,15 +20,15 @@ func (d *differ) textDiff(e emitfer, av, bv reflect.Value, a, b string) {
 		return
 	}
 
-	// Check for short strings.
-	if len(a) < 30 && len(b) < 30 {
-		e.emitf(av, bv, "%+q != %+q", a, b)
-		return
-	}
-
 	// Check for multi-line.
 	if textCheck(a, "\n", 2, 72) && textCheck(b, "\n", 2, 72) {
 		e.emitf(av, bv, "%s", &diffTextFormatter{a, b})
+		return
+	}
+
+	// Check for short strings.
+	if len(a) < 20 && len(b) < 20 || a == "" || b == "" {
+		e.emitf(av, bv, "%+q != %+q", a, b)
 		return
 	}
 
