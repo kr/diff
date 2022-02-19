@@ -47,7 +47,7 @@ For instance, although it is a goal to make the output
 readable to someone who's familiar with Go, I make no
 effort to strictly adhere to Go syntax.
 
-## Don't Rely on Code under Test
+## Don't Rely on Code Under Test
 
 We also avoid calling methods on the values being
 compared. For instance, package `time` defines a method
@@ -65,10 +65,14 @@ might end up with a "passing" test because `Equal`
 returns true even when the values are different. We want
 to reliably show you when the values are different.
 
-So our rule of thumb is **don't call methods on the
+So our policy is this module **doesn't call methods on the
 values being compared**. Instead, if you need to
 customize how comparisons are done, you can install a
 transform. See [Custom Comparison](#custom-comparison).
+Your transform is free to call methods on the values being
+compared, that is up to you; this module will simply not
+do so directly. Our hope is that if you're doing it
+yourself, it'll be less surprising.
 
 # Custom Comparison
 
