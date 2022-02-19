@@ -2,7 +2,10 @@ package diff_test
 
 import (
 	"fmt"
+	"log"
 	"net"
+	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -18,6 +21,25 @@ func ExampleEach() {
 	// Output:
 	// net.Dialer.Timeout: 5s != 10s
 	// net.Dialer.LocalAddr: nil != &net.TCPAddr{IP:nil, ...}
+}
+
+func ExampleLog() {
+	logger := log.New(os.Stdout, "", 0)
+
+	reqURL, err := url.Parse("https://example.org/?q=one")
+	if err != nil {
+		return
+	}
+
+	knownURL := &url.URL{
+		Scheme: "https",
+		Host:   "example.org",
+		Path:   "/",
+	}
+
+	diff.Log(reqURL, knownURL, diff.Logger(logger))
+	// Output:
+	// url.URL.RawQuery: "q=one" != ""
 }
 
 var t = new(testing.T)

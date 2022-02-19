@@ -160,7 +160,7 @@ On top of that, this is still a v0 module, so we might
 
 No promises here, but this is what I intend to work on:
 
-- [ ] example tests
+- [x] example tests
 - [ ] fuzz tests
 - [x] full output mode
 - [x] sort map keys when possible
