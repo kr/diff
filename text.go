@@ -3,7 +3,6 @@ package diff
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
 	"unicode/utf8"
 
@@ -11,25 +10,25 @@ import (
 	"github.com/pkg/diff/myers"
 )
 
-func (d *differ) textDiff(e emitfer, av, bv reflect.Value, a, b string) {
+func (d *differ) textDiff(e emitfer, a, b string) {
 	d.config.helper()
 
 	// TODO(kr): check for whitespace-only changes, use special format
 
 	if d.config.level == full {
-		e.emitf(av, bv, "")
+		e.emitf("")
 		return
 	}
 
 	// Check for multi-line.
 	if textCheck(a, "\n", 2, 72) && textCheck(b, "\n", 2, 72) {
-		e.emitf(av, bv, "%s", &diffTextFormatter{a, b, d.config.aLabel, d.config.bLabel})
+		e.emitf("%s", &diffTextFormatter{a, b, d.config.aLabel, d.config.bLabel})
 		return
 	}
 
 	// Check for short strings.
 	if len(a) < 20 && len(b) < 20 || a == "" || b == "" {
-		e.emitf(av, bv, "%+q != %+q", a, b)
+		e.emitf("%+q != %+q", a, b)
 		return
 	}
 
@@ -37,17 +36,17 @@ func (d *differ) textDiff(e emitfer, av, bv reflect.Value, a, b string) {
 	if textCheck(a, " ", 3, 10) && textCheck(b, " ", 3, 10) {
 		as := strings.SplitAfter(a, " ")
 		bs := strings.SplitAfter(b, " ")
-		textDiffInline(e, av, bv, a, b, as, bs)
+		textDiffInline(e, a, b, as, bs)
 		return
 	}
 
 	// Last resort is rune-by-rune.
 	as := splitRunes(a)
 	bs := splitRunes(b)
-	textDiffInline(e, av, bv, a, b, as, bs)
+	textDiffInline(e, a, b, as, bs)
 }
 
-func textDiffInline(e emitfer, av, bv reflect.Value, a, b string, as, bs []string) {
+func textDiffInline(e emitfer, a, b string, as, bs []string) {
 	acut := accum(as)
 	bcut := accum(bs)
 	pair := &slicePair[string]{a: as, b: bs}
@@ -55,7 +54,7 @@ func textDiffInline(e emitfer, av, bv reflect.Value, a, b string, as, bs []strin
 		a0, a1 := acut[ed.a0], acut[ed.a1]
 		b0, b1 := bcut[ed.b0], bcut[ed.b1]
 		ee := e.subf(reflectString, "[%d:%d]", a0, a1)
-		ee.emitf(av, bv, "%+q != %+q", a[a0:a1], b[b0:b1])
+		ee.emitf("%+q != %+q", a[a0:a1], b[b0:b1])
 	}
 }
 
