@@ -436,14 +436,13 @@ func (d *differ) stringDiff(e emitfer, av, bv reflect.Value, a, b string) {
 		return
 	}
 
-	u := utf8.ValidString(a) && utf8.ValidString(b)
-	if !u {
-		// TODO(kr): binary diff, hex, something
-		e.emitf(av, bv, "binary: %+q != %+q", a, b)
+	if utf8.ValidString(a) && utf8.ValidString(b) {
+		d.textDiff(e, av, bv, a, b)
 		return
 	}
 
-	d.textDiff(e, av, bv, a, b)
+	// TODO(kr): binary diff, hex, something
+	e.emitf(av, bv, "binary: %+q != %+q", a, b)
 }
 
 func sortedKeys(maps ...reflect.Value) []reflect.Value {
