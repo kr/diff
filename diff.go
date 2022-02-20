@@ -118,7 +118,8 @@ type visit struct {
 }
 
 type emitfer interface {
-	emitf(av, bv reflect.Value, format string, arg ...any)
+	set(av, bv reflect.Value)
+	emitf(format string, arg ...any)
 	subf(t reflect.Type, format string, arg ...any) emitfer
 	didEmit() bool
 }
@@ -128,9 +129,15 @@ type printEmitter struct {
 	rootType string
 	path     []string
 	did      bool
+	av, bv   reflect.Value
 }
 
-func (e *printEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
+func (e *printEmitter) set(av, bv reflect.Value) {
+	e.av = av
+	e.bv = bv
+}
+
+func (e *printEmitter) emitf(format string, arg ...any) {
 	e.config.helper()
 	e.did = true
 	switch e.config.level {
@@ -152,8 +159,8 @@ func (e *printEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
 		}
 		p := strings.Join(e.path, "")
 		e.config.sink("%s%s%s:\n%#v\n%s%s:\n%#v\n", t,
-			e.config.aLabel, p, formatFull(av),
-			e.config.bLabel, p, formatFull(bv),
+			e.config.aLabel, p, formatFull(e.av),
+			e.config.bLabel, p, formatFull(e.bv),
 		)
 	default:
 		panic("diff: bad verbose level")
@@ -188,7 +195,9 @@ type countEmitter struct {
 	n int
 }
 
-func (e *countEmitter) emitf(av, bv reflect.Value, format string, arg ...any) {
+func (e *countEmitter) set(av, bv reflect.Value) {}
+
+func (e *countEmitter) emitf(format string, arg ...any) {
 	e.n++
 }
 
@@ -241,17 +250,18 @@ func (d *differ) equalAsIs(av, bv reflect.Value) bool {
 
 func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	d.config.helper()
+	e.set(av, bv)
 	if !av.IsValid() && !bv.IsValid() {
 		return
 	}
 	if !av.IsValid() || !bv.IsValid() {
-		e.emitf(av, bv, "%v != %v", formatShort(av, true), formatShort(bv, true))
+		e.emitf("%v != %v", formatShort(av, true), formatShort(bv, true))
 		return
 	}
 
 	t := av.Type()
 	if t != bv.Type() {
-		e.emitf(av, bv, "%v != %v", formatShort(av, true), formatShort(bv, true))
+		e.emitf("%v != %v", formatShort(av, true), formatShort(bv, true))
 		return
 	}
 
@@ -265,12 +275,12 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 		bvis := visit{unsafe.Pointer(bv.Pointer()), t}
 		if bSeen, ok := d.aSeen[avis]; ok {
 			if bSeen != bvis {
-				e.emitf(av, bv, "uneven cycle")
+				e.emitf("uneven cycle")
 			}
 			return
 		}
 		if _, ok := d.bSeen[bvis]; ok {
-			e.emitf(av, bv, "uneven cycle")
+			e.emitf("uneven cycle")
 			return
 		}
 		d.aSeen[avis] = bvis
@@ -292,7 +302,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	if ff, ok := d.config.format[t]; ok {
 		if didXform || !d.equalAsIs(av, bv) {
 			s := reflectApply(ff, av, bv).String()
-			e.emitf(av, bv, "%s", s)
+			e.emitf("%s", s)
 		}
 		return
 	}
@@ -336,12 +346,15 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 
 		for _, k := range sortedKeys(av, bv) {
 			esub := e.subf(t, "[%#v]", k)
-			if av.MapIndex(k).IsValid() && bv.MapIndex(k).IsValid() {
-				d.walk(esub, av.MapIndex(k), bv.MapIndex(k), true, false)
-			} else if av.MapIndex(k).IsValid() {
-				esub.emitf(av.MapIndex(k), bv.MapIndex(k), "(removed)")
+			ak := av.MapIndex(k)
+			bk := bv.MapIndex(k)
+			esub.set(ak, bk)
+			if ak.IsValid() && bk.IsValid() {
+				d.walk(esub, ak, bk, true, false)
+			} else if ak.IsValid() {
+				esub.emitf("(removed)")
 			} else { // k in bv
-				esub.emitf(av.MapIndex(k), bv.MapIndex(k), "(added) %v", formatShort(bv.MapIndex(k), false))
+				esub.emitf("(added) %v", formatShort(bk, false))
 			}
 		}
 	case reflect.Ptr:
@@ -349,7 +362,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 			break
 		}
 		if av.IsNil() != bv.IsNil() {
-			e.emitf(av, bv, "%v != %v", formatShort(av, wantType), formatShort(bv, wantType))
+			e.emitf("%v != %v", formatShort(av, wantType), formatShort(bv, wantType))
 			break
 		}
 		d.walk(e, av.Elem(), bv.Elem(), true, wantType)
@@ -364,13 +377,13 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 		if t.ConvertibleTo(reflectBytes) {
 			as := av.Convert(reflectString)
 			bs := bv.Convert(reflectString)
-			d.stringDiff(e, av, bv, as.String(), bs.String())
+			d.stringDiff(e, as.String(), bs.String())
 			break
 		}
 		// TODO(kr): fancy diff (histogram, myers)
 		n := av.Len()
 		if blen := bv.Len(); n != blen {
-			e.emitf(av, bv, "{len %d} != {len %d}", n, blen)
+			e.emitf("{len %d} != {len %d}", n, blen)
 			return
 		}
 		for i := 0; i < n; i++ {
@@ -389,7 +402,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	case reflect.Complex64, reflect.Complex128:
 		d.eqtest(e, av, bv, av.Complex(), bv.Complex(), wantType)
 	case reflect.String:
-		d.stringDiff(e, av, bv, av.String(), bv.String())
+		d.stringDiff(e, av.String(), bv.String())
 	case reflect.Chan, reflect.UnsafePointer:
 		if a, b := av.Pointer(), bv.Pointer(); a != b {
 			d.emitPointers(e, av, bv, wantType)
@@ -406,15 +419,15 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	if didXform && !e.didEmit() {
 		var buf bytes.Buffer
 		writeType(&buf, t)
-		e.emitf(av, bv, "warning: %s transform is impure", buf.String())
-		e.emitf(av, bv, "%v != %v", formatShort(av, wantType), formatShort(bv, wantType))
+		e.emitf("warning: %s transform is impure", buf.String())
+		e.emitf("%v != %v", formatShort(av, wantType), formatShort(bv, wantType))
 	}
 }
 
 func (d *differ) eqtest(e emitfer, av, bv reflect.Value, a, b any, wantType bool) {
 	d.config.helper()
 	if a != b {
-		e.emitf(av, bv, "%v != %v",
+		e.emitf("%v != %v",
 			formatShort(av, wantType),
 			formatShort(bv, wantType),
 		)
@@ -423,13 +436,13 @@ func (d *differ) eqtest(e emitfer, av, bv reflect.Value, a, b any, wantType bool
 
 func (d *differ) emitPointers(e emitfer, av, bv reflect.Value, wantType bool) {
 	d.config.helper()
-	e.emitf(av, bv, "%v != %v",
+	e.emitf("%v != %v",
 		formatShort(av, wantType),
 		formatShort(bv, wantType),
 	)
 }
 
-func (d *differ) stringDiff(e emitfer, av, bv reflect.Value, a, b string) {
+func (d *differ) stringDiff(e emitfer, a, b string) {
 	d.config.helper()
 
 	if a == b {
@@ -437,12 +450,12 @@ func (d *differ) stringDiff(e emitfer, av, bv reflect.Value, a, b string) {
 	}
 
 	if utf8.ValidString(a) && utf8.ValidString(b) {
-		d.textDiff(e, av, bv, a, b)
+		d.textDiff(e, a, b)
 		return
 	}
 
 	// TODO(kr): binary diff, hex, something
-	e.emitf(av, bv, "binary: %+q != %+q", a, b)
+	e.emitf("binary: %+q != %+q", a, b)
 }
 
 func sortedKeys(maps ...reflect.Value) []reflect.Value {
