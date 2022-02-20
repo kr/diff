@@ -23,7 +23,7 @@ func (d *differ) textDiff(e emitfer, av, bv reflect.Value, a, b string) {
 
 	// Check for multi-line.
 	if textCheck(a, "\n", 2, 72) && textCheck(b, "\n", 2, 72) {
-		e.emitf(av, bv, "%s", &diffTextFormatter{a, b})
+		e.emitf(av, bv, "%s", &diffTextFormatter{a, b, d.config.aLabel, d.config.bLabel})
 		return
 	}
 
@@ -64,10 +64,10 @@ func textCheck(s, sep string, nmin, amax int) bool {
 	return n >= nmin && len(s)/n <= amax
 }
 
-type diffTextFormatter struct{ a, b string }
+type diffTextFormatter struct{ a, b, aLabel, bLabel string }
 
 func (df *diffTextFormatter) Format(f fmt.State, verb rune) {
-	err := diff.Text("a", "b", df.a, df.b, f)
+	err := diff.Text(df.aLabel, df.bLabel, df.a, df.b, f)
 	if err != nil {
 		panic(err)
 	}
