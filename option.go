@@ -119,6 +119,18 @@ func EqualFuncs(b bool) Option {
 	}}
 }
 
+// ZeroFields copies values and sets the specified fields to their zero value.
+func ZeroFields[T any](fields ...string) Option {
+	return Transform(func(v T) any {
+		rv := reflect.ValueOf(&v)
+		for _, name := range fields {
+			fv := rv.Elem().FieldByName(name)
+			fv.Set(reflect.Zero(fv.Type()))
+		}
+		return v
+	})
+}
+
 // Transform converts each value of type T to another value
 // for the purpose of determining equality.
 // The transformed value need not be the same type as T.

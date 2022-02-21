@@ -58,3 +58,29 @@ func TestTimeFormat(t *testing.T) {
 		t.Fatalf("diff = %q, want %q", got, want)
 	}
 }
+
+func TestZeroFields(t *testing.T) {
+	type T struct{ A, B int }
+	t0 := T{0, 2}
+	t1 := T{1, 2}
+
+	t.Run("A", func(t *testing.T) {
+		diff.Test(t, t.Errorf, t0, t1,
+			diff.ZeroFields[T]("A"))
+	})
+
+	t.Run("B", func(t *testing.T) {
+		want := "diff_test.T.A: 0 != 1"
+		var got string
+		sink := func(format string, arg ...any) {
+			t.Helper()
+			t.Logf(format, arg...)
+			got = strings.TrimSpace(fmt.Sprintf(format, arg...))
+		}
+		diff.Test(t, sink, t0, t1,
+			diff.ZeroFields[T]("B"))
+		if got != want {
+			t.Fatalf("diff = %q, want %q", got, want)
+		}
+	})
+}
