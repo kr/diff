@@ -119,12 +119,19 @@ func EqualFuncs(b bool) Option {
 	}}
 }
 
-// ZeroFields copies values and sets the specified fields to their zero value.
+// ZeroFields transforms a value of struct type T. It makes a copy of its input
+// and sets the specified fields to their zero values. See also Transform.
 func ZeroFields[T any](fields ...string) Option {
+	t := reflect.TypeOf((*T)(nil)).Elem()
+	for _, name := range fields {
+		if _, ok := t.FieldByName(name); !ok {
+			panic("diff: field not found: " + name)
+		}
+	}
 	return Transform(func(v T) any {
-		rv := reflect.ValueOf(&v)
 		for _, name := range fields {
-			fv := rv.Elem().FieldByName(name)
+			e := reflect.ValueOf(&v).Elem()
+			fv := e.FieldByName(name)
 			fv.Set(reflect.Zero(fv.Type()))
 		}
 		return v
