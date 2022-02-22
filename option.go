@@ -119,6 +119,29 @@ func EqualFuncs(b bool) Option {
 	}}
 }
 
+// ZeroFields transforms a value of struct type T. It makes a copy of its input
+// and sets the specified fields to their zero values.
+//
+// This effectively makes comparison ignore the given fields.
+//
+// See also Transform.
+func ZeroFields[T any](fields ...string) Option {
+	t := reflect.TypeOf((*T)(nil)).Elem()
+	for _, name := range fields {
+		if _, ok := t.FieldByName(name); !ok {
+			panic("diff: field not found: " + name)
+		}
+	}
+	return Transform(func(v T) any {
+		e := reflect.ValueOf(&v).Elem()
+		for _, name := range fields {
+			fv := e.FieldByName(name)
+			fv.Set(reflect.Zero(fv.Type()))
+		}
+		return v
+	})
+}
+
 // Transform converts each value of type T to another value
 // for the purpose of determining equality.
 // The transformed value need not be the same type as T.
