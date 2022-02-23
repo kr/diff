@@ -147,6 +147,9 @@ func (e *printEmitter) emitf(format string, arg ...any) {
 			p = strings.Join(e.path, "") + ": "
 		}
 		arg = append([]any{e.rootType, p}, arg...)
+		if strings.HasPrefix(format, "\n") && p == "" {
+			format = format[1:]
+		}
 		e.config.sink("%s%s"+format+"\n", arg...)
 	case pathOnly:
 		e.config.sink("%s%s\n", e.rootType, strings.Join(e.path, ""))

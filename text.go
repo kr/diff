@@ -22,7 +22,7 @@ func (d *differ) textDiff(e emitfer, a, b string) {
 
 	// Check for multi-line.
 	if textCheck(a, "\n", 2, 72) && textCheck(b, "\n", 2, 72) {
-		e.emitf("%s", &diffTextFormatter{a, b, d.config.aLabel, d.config.bLabel})
+		e.emitf("\n%s", &diffTextFormatter{a, b, d.config.aLabel, d.config.bLabel})
 		return
 	}
 
