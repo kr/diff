@@ -227,7 +227,8 @@ func newDiffer(h func(), f func(format string, arg ...any), opt ...Option) *diff
 	d.config.format = map[reflect.Type]reflect.Value{}
 	d.config.aLabel = "a"
 	d.config.bLabel = "b"
-	OptionList(defaultOpt, OptionList(opt...)).apply(&d.config)
+	defaultOpt.apply(&d.config)
+	OptionList(opt...).apply(&d.config)
 	return d
 }
 
