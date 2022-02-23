@@ -7,4 +7,4 @@ require (
 	github.com/rogpeppe/go-internal v1.8.1
 )
 
-require golang.org/x/exp v0.0.0-20220218215828-6cf2b201936e // indirect
+require golang.org/x/exp v0.0.0-20220218215828-6cf2b201936e

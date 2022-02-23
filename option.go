@@ -128,7 +128,7 @@ func EqualFuncs(b bool) Option {
 //
 // See also Transform.
 func ZeroFields[T any](fields ...string) Option {
-	checkFieldsExist[T](fields...)
+	checkFieldsExist[T](fields)
 	return Transform(func(v T) any {
 		e := reflect.ValueOf(&v).Elem()
 		for _, name := range fields {
@@ -139,7 +139,7 @@ func ZeroFields[T any](fields ...string) Option {
 	})
 }
 
-// KeepFields transforms a value of struct type T. It makes a copy of its input
+// KeepFields transforms a value of struct type T. It makes a copy of its input,
 // preserving the specified field values and setting all other fields to their
 // zero values.
 //
@@ -147,7 +147,7 @@ func ZeroFields[T any](fields ...string) Option {
 //
 // See also Transform.
 func KeepFields[T any](fields ...string) Option {
-	checkFieldsExist[T](fields...)
+	checkFieldsExist[T](fields)
 	return Transform(func(v0 T) any {
 		var v1 T
 		e0 := reflect.ValueOf(&v0).Elem()
@@ -163,7 +163,7 @@ func KeepFields[T any](fields ...string) Option {
 	})
 }
 
-func checkFieldsExist[T any](fields ...string) {
+func checkFieldsExist[T any](fields []string) {
 	t := reflect.TypeOf((*T)(nil)).Elem()
 	for _, name := range fields {
 		if _, ok := t.FieldByName(name); !ok {
