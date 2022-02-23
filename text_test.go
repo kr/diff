@@ -1,6 +1,9 @@
 package diff_test
 
 import (
+	"bytes"
+	"log"
+	"strings"
 	"testing"
 
 	"kr.dev/diff"
@@ -27,6 +30,22 @@ func TestTextShort(t *testing.T) {
 
 func TestTextRunes(t *testing.T) {
 	testStringDiff(t, runesMyers, runesA, runesB)
+}
+
+func TestLogMyers(t *testing.T) {
+	var buf bytes.Buffer
+	l := log.New(&buf, "", log.Lshortfile)
+	type Y struct{ S string }
+	diff.Log(Y{"a\nb"}, Y{"a\nc"}, diff.Logger(l))
+	got := strings.TrimSpace(buf.String())
+	want := "text_test.go:"
+	if !strings.HasPrefix(got, want) {
+		t.Errorf("diff.Log() = %q, want prefix %q", got, want)
+	}
+	want = "\n--- a\n+++ b\n@@ -1,2 +1,2 @@\n a\n-b\n+c"
+	if !strings.HasSuffix(got, want) {
+		t.Errorf("diff.Log() = %q, want suffix %q", got, want)
+	}
 }
 
 func testStringDiff(t *testing.T, want string, a, b any) {
