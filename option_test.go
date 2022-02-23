@@ -84,3 +84,29 @@ func TestZeroFields(t *testing.T) {
 		}
 	})
 }
+
+func TestKeepFields(t *testing.T) {
+	type C struct{ A, B int }
+	t0 := C{1, 2}
+	t1 := C{1, 3}
+
+	t.Run("A", func(t *testing.T) {
+		diff.Test(t, t.Errorf, t0, t1,
+			diff.KeepFields[C]("A"))
+	})
+
+	t.Run("B", func(t *testing.T) {
+		want := "diff_test.C.B: 2 != 3"
+		var got string
+		sink := func(format string, arg ...any) {
+			t.Helper()
+			t.Logf(format, arg...)
+			got = strings.TrimSpace(fmt.Sprintf(format, arg...))
+		}
+		diff.Test(t, sink, t0, t1,
+			diff.KeepFields[C]("B"))
+		if got != want {
+			t.Fatalf("diff = %q, want %q", got, want)
+		}
+	})
+}
