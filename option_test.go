@@ -110,3 +110,23 @@ func TestKeepFields(t *testing.T) {
 		}
 	})
 }
+
+func TestKeepExported(t *testing.T) {
+	type em struct{ I int }
+	type C struct {
+		em
+		A, B, unexported int
+	}
+	t0 := C{em{3}, 1, 2, 9}
+	t1 := C{em{4}, 1, 2, 5}
+	diff.Test(t, t.Errorf, t0, t1, diff.KeepExported[C]())
+
+	var e any
+	func() {
+		defer func() { e = recover() }()
+		diff.KeepExported[struct{}]()
+	}()
+	if e == nil {
+		t.Errorf("expected panic")
+	}
+}
