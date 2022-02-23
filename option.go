@@ -163,6 +163,29 @@ func KeepFields[T any](fields ...string) Option {
 	})
 }
 
+// KeepExported transforms a value of struct type T. It makes a copy of its input,
+// preserving exported fields only.
+//
+// This effectively makes comparison use only exported fields.
+//
+// See also Transform.
+func KeepExported[T any]() Option {
+	t := reflect.TypeOf((*T)(nil)).Elem()
+	var fields []string
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if f.IsExported() {
+			fields = append(fields, f.Name)
+		}
+	}
+
+	if len(fields) == 0 {
+		panic("diff: struct must contain at least one exported field")
+	}
+
+	return KeepFields[T](fields...)
+}
+
 func checkFieldsExist[T any](fields []string) {
 	t := reflect.TypeOf((*T)(nil)).Elem()
 	for _, name := range fields {
