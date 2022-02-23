@@ -1,5 +1,7 @@
 # kr.dev/diff
 
+![CI status](https://github.com/kr/diff/actions/workflows/ci.yml/badge.svg)
+
 Hello, friend! This is a Go module to print the
 differences between any two Go values.
 
