@@ -6,6 +6,8 @@ import (
 	"math"
 	"reflect"
 	"time"
+
+	"golang.org/x/exp/slices"
 )
 
 // A level describes how much output to produce.
@@ -126,12 +128,7 @@ func EqualFuncs(b bool) Option {
 //
 // See also Transform.
 func ZeroFields[T any](fields ...string) Option {
-	t := reflect.TypeOf((*T)(nil)).Elem()
-	for _, name := range fields {
-		if _, ok := t.FieldByName(name); !ok {
-			panic("diff: field not found: " + name)
-		}
-	}
+	checkFieldsExist[T](fields...)
 	return Transform(func(v T) any {
 		e := reflect.ValueOf(&v).Elem()
 		for _, name := range fields {
@@ -140,6 +137,39 @@ func ZeroFields[T any](fields ...string) Option {
 		}
 		return v
 	})
+}
+
+// KeepFields transforms a value of struct type T. It makes a copy of its input
+// preserving the specified field values and setting all other fields to their
+// zero values.
+//
+// This effectively makes comparison use only the provided fields.
+//
+// See also Transform.
+func KeepFields[T any](fields ...string) Option {
+	checkFieldsExist[T](fields...)
+	return Transform(func(v0 T) any {
+		var v1 T
+		e0 := reflect.ValueOf(&v0).Elem()
+		e1 := reflect.ValueOf(&v1).Elem()
+		for _, name := range fields {
+			if slices.Contains(fields, name) {
+				fv0 := e0.FieldByName(name)
+				fv1 := e1.FieldByName(name)
+				fv1.Set(fv0)
+			}
+		}
+		return v1
+	})
+}
+
+func checkFieldsExist[T any](fields ...string) {
+	t := reflect.TypeOf((*T)(nil)).Elem()
+	for _, name := range fields {
+		if _, ok := t.FieldByName(name); !ok {
+			panic("diff: field not found: " + name)
+		}
+	}
 }
 
 // Transform converts each value of type T to another value
