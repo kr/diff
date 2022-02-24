@@ -122,18 +122,19 @@ func EqualFuncs(b bool) Option {
 }
 
 // ZeroFields transforms values of struct type T. It makes a copy of its input
-// and sets the specified fields to their zero values.
+// and sets the named fields to their zero values.
 //
 // This effectively makes comparison ignore the given fields.
 //
+// ZeroFields panics if any name argument is not a visible field in T.
 // See Transform for more info about transforms.
 // See also KeepFields.
-func ZeroFields[T any](fields ...string) Option {
-	checkFieldsExist[T](fields)
+func ZeroFields[T any](name ...string) Option {
+	checkFieldsExist[T](name)
 	return Transform(func(v T) any {
 		e := reflect.ValueOf(&v).Elem()
-		for _, name := range fields {
-			fv := e.FieldByName(name)
+		for _, s := range name {
+			fv := e.FieldByName(s)
 			fv.Set(reflect.Zero(fv.Type()))
 		}
 		return v
@@ -141,23 +142,24 @@ func ZeroFields[T any](fields ...string) Option {
 }
 
 // KeepFields transforms values of struct type T. It makes a copy of its input,
-// preserving the specified field values and setting all other fields to their
+// preserving the named field values and setting all other fields to their
 // zero values.
 //
 // This effectively makes comparison use only the provided fields.
 //
+// KeepFields panics if any name argument is not a visible field in T.
 // See Transform for more info about transforms.
 // See also ZeroFields.
-func KeepFields[T any](fields ...string) Option {
-	checkFieldsExist[T](fields)
+func KeepFields[T any](name ...string) Option {
+	checkFieldsExist[T](name)
 	return Transform(func(v0 T) any {
 		var v1 T
 		e0 := reflect.ValueOf(&v0).Elem()
 		e1 := reflect.ValueOf(&v1).Elem()
-		for _, name := range fields {
-			if slices.Contains(fields, name) {
-				fv0 := e0.FieldByName(name)
-				fv1 := e1.FieldByName(name)
+		for _, s := range name {
+			if slices.Contains(name, s) {
+				fv0 := e0.FieldByName(s)
+				fv1 := e1.FieldByName(s)
 				fv1.Set(fv0)
 			}
 		}
