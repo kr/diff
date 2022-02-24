@@ -83,24 +83,27 @@ given type are compared. Here's how.
 
 Let's say you're testing code that uses temporary files
 with randomized names, and your result might contain
-values of `*fs.PathError`. You want to check that the
+values of `fs.PathError`. You want to check that the
 errors are the same, but you need to ignore the file
 name. By design, the name is different every time.
 
-    var ignorePath = diff.Transform(func(pe *fs.PathError) any {
-        return &fs.PathError{
-            Op:   pe.Op,
-            Path: "", // ignore pe.Path
-            Err:  pe.Err,
-        }
+    var ignorePath = diff.Transform(func(pe fs.PathError) any {
+        pe.Path = "" // it's ok to modify this copy
+        return pe
     })
 
     diff.Test(t, t.Errorf, a, b, ignorePath)
 
 In this case, you use the `Transform` option to
-change each `*fs.PathError` into a new value, so that
-the transformed values are equal as long as `Op` and
-`Err` are equal, and unequal otherwise.
+change each `fs.PathError` into a new value, so that the
+transformed values are equal as long as the other fields,
+`Op` and `Err`, are equal, and unequal otherwise.
+
+There's also a shorthand notation for this pattern.
+This example can be rewritten using the `ZeroFields`
+helper option.
+
+    var ignorePath = diff.ZeroFields[fs.PathError]("Path")
 
 There are also a couple of predefined transforms
 exported by this package. Their definitions are visible

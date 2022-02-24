@@ -121,12 +121,13 @@ func EqualFuncs(b bool) Option {
 	}}
 }
 
-// ZeroFields transforms a value of struct type T. It makes a copy of its input
+// ZeroFields transforms values of struct type T. It makes a copy of its input
 // and sets the specified fields to their zero values.
 //
 // This effectively makes comparison ignore the given fields.
 //
-// See also Transform.
+// See Transform for more info about transforms.
+// See also KeepFields.
 func ZeroFields[T any](fields ...string) Option {
 	checkFieldsExist[T](fields)
 	return Transform(func(v T) any {
@@ -139,13 +140,14 @@ func ZeroFields[T any](fields ...string) Option {
 	})
 }
 
-// KeepFields transforms a value of struct type T. It makes a copy of its input,
+// KeepFields transforms values of struct type T. It makes a copy of its input,
 // preserving the specified field values and setting all other fields to their
 // zero values.
 //
 // This effectively makes comparison use only the provided fields.
 //
-// See also Transform.
+// See Transform for more info about transforms.
+// See also ZeroFields.
 func KeepFields[T any](fields ...string) Option {
 	checkFieldsExist[T](fields)
 	return Transform(func(v0 T) any {
