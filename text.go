@@ -3,6 +3,7 @@ package diff
 import (
 	"context"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -11,6 +12,12 @@ import (
 )
 
 const nContext = 3
+
+var (
+	identity = strings.NewReplacer()
+	stripWS  = strings.NewReplacer(" ", "", "\t", "")
+	visWS    = strings.NewReplacer(" ", "\u00b7", "\t", " \u2192 ")
+)
 
 func (d *differ) textDiff(e emitfer, a, b string) {
 	d.config.helper()
@@ -78,6 +85,7 @@ func (df *diffTextFormatter) Format(f fmt.State, verb rune) {
 
 	for i := 0; i < len(merged); {
 		ed := merged[i]
+		vis := wsFilter(ed, as, bs)
 		i1 := i + 1
 		for i1 < len(merged) && (aIsClose(merged, i1) || bIsClose(merged, i1)) {
 			i1++
@@ -105,20 +113,27 @@ func (df *diffTextFormatter) Format(f fmt.State, verb rune) {
 		)
 		for a0 < a1 || b0 < b1 {
 			if a0 < ed.a0 || i > i1 {
-				fmt.Fprintf(f, " %s\n", as[a0])
+				io.WriteString(f, " ")
+				vis.WriteString(f, as[a0])
+				io.WriteString(f, "\n")
 				a0++
 				b0++
 			} else if a0 < ed.a1 {
-				fmt.Fprintf(f, "-%s\n", as[a0])
+				io.WriteString(f, "-")
+				vis.WriteString(f, as[a0])
+				io.WriteString(f, "\n")
 				a0++
 			} else if b0 < ed.b1 {
-				fmt.Fprintf(f, "+%s\n", bs[b0])
+				io.WriteString(f, "+")
+				vis.WriteString(f, bs[b0])
+				io.WriteString(f, "\n")
 				b0++
 			}
 			if a0 >= ed.a1 && b0 >= ed.b1 {
 				i++
 				if i < len(merged) {
 					ed = merged[i]
+					vis = wsFilter(ed, as, bs)
 				}
 			}
 		}
@@ -160,4 +175,16 @@ func splitRunes(s string) (a []string) {
 		a = append(a, string(r))
 	}
 	return a
+}
+
+func wsFilter(ed edit, as, bs []string) *strings.Replacer {
+	if ed.a1-ed.a0 != ed.b1-ed.b0 {
+		return identity
+	}
+	for i := 0; i < ed.a1-ed.a0; i++ {
+		if stripWS.Replace(as[ed.a0+i]) != stripWS.Replace(bs[ed.b0+i]) {
+			return identity
+		}
+	}
+	return visWS
 }
