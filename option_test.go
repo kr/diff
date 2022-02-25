@@ -44,7 +44,7 @@ func TestTimeFormat(t *testing.T) {
 	}
 	t1 := t0.Add(5 * time.Millisecond)
 
-	want := "2021-01-31T12:39:00Z != 2021-01-31T12:39:00.005Z (5ms)"
+	want := "time.Time(transformed): 2021-01-31T12:39:00Z != 2021-01-31T12:39:00.005Z (5ms)"
 	var got string
 	sink := func(format string, arg ...any) {
 		t.Helper()
@@ -70,7 +70,7 @@ func TestZeroFields(t *testing.T) {
 	})
 
 	t.Run("B", func(t *testing.T) {
-		want := "diff_test.C.A: 0 != 1"
+		want := "diff_test.C(transformed).A: 0 != 1"
 		var got string
 		sink := func(format string, arg ...any) {
 			t.Helper()
@@ -96,7 +96,7 @@ func TestKeepFields(t *testing.T) {
 	})
 
 	t.Run("B", func(t *testing.T) {
-		want := "diff_test.C.B: 2 != 3"
+		want := "diff_test.C(transformed).B: 2 != 3"
 		var got string
 		sink := func(format string, arg ...any) {
 			t.Helper()
