@@ -20,6 +20,10 @@ func TestTextLines(t *testing.T) {
 	testStringDiff(t, linesMyers, linesA, linesB)
 }
 
+func TestTextWSOnly(t *testing.T) {
+	testStringDiff(t, wsonlyMyers, wsonlyA, wsonlyB)
+}
+
 func TestTextWords(t *testing.T) {
 	testStringDiff(t, wordsMyers, wordsA, wordsB)
 }
@@ -171,4 +175,16 @@ const (
 string[14:15]: "a" != "o"
 string[27:27]: "" != "="
 `
+)
+
+const (
+	wsonlyA     = "x\n    y\nz"
+	wsonlyB     = "x\n\ty\nz"
+	wsonlyMyers = "--- a\n" +
+		"+++ b\n" +
+		"@@ -1,3 +1,3 @@\n" +
+		" x\n" +
+		"-\u00b7\u00b7\u00b7\u00b7y\n" +
+		"+ \u2192 y\n" +
+		" z\n\n"
 )

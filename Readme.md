@@ -172,7 +172,7 @@ No promises here, but this is what I intend to work on:
 - [x] detect cycles when formatting full output
 - [ ] histogram/myers diff for lists and slices
 - [x] special handling for text (string and []byte)
-- [ ] special handling for whitespace-only diffs
+- [x] special handling for whitespace-only diffs
 - [ ] special handling for binary (string and []byte)
 - [ ] format single value API (package, maybe module?)
 - [ ] make depth limit configuable (as "precision")
