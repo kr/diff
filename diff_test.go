@@ -307,6 +307,25 @@ func TestLog(t *testing.T) {
 	}
 }
 
+func TestShowOrig(t *testing.T) {
+	a, b := 1, 2
+
+	xf := diff.Transform(func(v int) any {
+		return 0
+	})
+
+	equal := true
+	f := func(format string, arg ...any) {
+		equal = false
+		t.Logf(format, arg...)
+	}
+
+	diff.Test(t, f, a, b, xf, diff.ShowOriginal())
+	if equal {
+		t.Fail()
+	}
+}
+
 func TestTransformUnexported(t *testing.T) {
 	type T struct{ v time.Time }
 	diff.Test(t, t.Errorf, &T{}, &T{})

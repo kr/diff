@@ -100,7 +100,8 @@ type config struct {
 	// they are included in the diff tree.
 	// hashes, weights, and differences are computed
 	// using the transformed values.
-	xform map[reflect.Type]reflect.Value
+	xform    map[reflect.Type]reflect.Value
+	showOrig bool // also diff untransformed values
 
 	format map[reflect.Type]reflect.Value
 
@@ -292,19 +293,23 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	}
 
 	// Check for a transform func.
-	didXform := false
 	if xf, haveXform := d.config.xform[t]; xformOk && haveXform {
 		ax := addressable(reflectApply(xf, av).Elem())
 		bx := addressable(reflectApply(xf, bv).Elem())
-		if d.equalAsIs(ax, bx) {
+		d.walk(e.subf(t, "(transformed)"), ax, bx, false, true)
+		if !d.config.showOrig {
 			return
 		}
-		didXform = true
+		e = e.subf(t, "(original)")
+		if d.equalAsIs(av, bv) {
+			e.emitf("equal")
+			return
+		}
 	}
 
 	// Check for a format func.
 	if ff, ok := d.config.format[t]; ok {
-		if didXform || !d.equalAsIs(av, bv) {
+		if !d.equalAsIs(av, bv) {
 			s := reflectApply(ff, av, bv).String()
 			e.emitf("%s", s)
 		}
@@ -413,18 +418,6 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 		}
 	default:
 		panic("diff: unknown reflect.Kind " + t.Kind().String())
-	}
-
-	// The xform check returns early if the transformed values are
-	// deeply equal. So if we got this far, we know they are different.
-	// If we didn't find a difference in the untransformed values,
-	// the xform function can't be a pure function.
-	// Make sure to emit *something* so the user knows there is a diff.
-	if didXform && !e.didEmit() {
-		var buf bytes.Buffer
-		writeType(&buf, t)
-		e.emitf("warning: %s transform is impure", buf.String())
-		e.emitf("%v != %v", formatShort(av, wantType), formatShort(bv, wantType))
 	}
 }
 

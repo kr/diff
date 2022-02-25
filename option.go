@@ -109,6 +109,15 @@ func verbosity(n level) Option {
 	}}
 }
 
+// ShowOriginal show diffs of untransformed values in addition
+// to the diffs of transformed values. This is mainly useful for
+// debugging transform functions.
+func ShowOriginal() Option {
+	return Option{func(c *config) {
+		c.showOrig = true
+	}}
+}
+
 // EqualFuncs controls how function values are compared.
 // If true, any two non-nil function values of the same type
 // are treated as equal;
@@ -199,16 +208,17 @@ func checkFieldsExist[T any](fields []string) {
 	}
 }
 
-// Transform converts each value of type T to another value
-// for the purpose of determining equality.
-// The transformed value need not be the same type as T.
+// Transform converts values of type T to another value to
+// be compared.
 //
-// Function f must be pure. It must not incorporate
-// randomness or rely on global state.
+// A transform is applied when the values on both sides of
+// the comparison are of type T. The two values returned by
+// the transform (one on each side) are then compared, and
+// their diffs emitted. See also ShowOriginal.
 //
-// A transform affects comparison, not output.
-// The original, untransformed value is still emitted
-// when a difference is found.
+// The result can be any type, not just T. It also doesn't
+// have to be the same type as the value returned by the
+// transform on the other side.
 //
 // See TransformRemove to remove a transform.
 func Transform[T any](f func(T) any) Option {
