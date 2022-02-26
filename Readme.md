@@ -166,7 +166,6 @@ On top of that, this is still a v0 module, so we might
 No promises here, but this is what I intend to work on:
 
 - [x] example tests
-- [ ] fuzz tests
 - [x] full output mode
 - [x] sort map keys when possible
 - [x] detect cycles when formatting full output
@@ -174,6 +173,7 @@ No promises here, but this is what I intend to work on:
 - [x] special handling for text (string and []byte)
 - [x] special handling for whitespace-only diffs
 - [ ] special handling for binary (string and []byte)
+- [ ] histogram and/or patience diff algorithm
 - [ ] format single value API (package, maybe module?)
 - [ ] make depth limit configuable (as "precision")
 
