@@ -170,7 +170,7 @@ No promises here, but this is what I intend to work on:
 - [x] full output mode
 - [x] sort map keys when possible
 - [x] detect cycles when formatting full output
-- [ ] histogram/myers diff for lists and slices
+- [x] myers diff for arrays and slices
 - [x] special handling for text (string and []byte)
 - [x] special handling for whitespace-only diffs
 - [ ] special handling for binary (string and []byte)
