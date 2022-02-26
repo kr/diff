@@ -1,14 +1,13 @@
 package diff
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
-	"github.com/pkg/diff/myers"
+	"kr.dev/diff/internal/diffseq"
 )
 
 const nContext = 3
@@ -58,10 +57,9 @@ func (d *differ) textDiff(e emitfer, a, b string) {
 func textDiffInline(e emitfer, a, b string, as, bs []string) {
 	acut := accum(as)
 	bcut := accum(bs)
-	pair := &slicePair[string]{a: as, b: bs}
-	for _, ed := range merge(myers.Diff(context.Background(), pair)) {
-		a0, a1 := acut[ed.a0], acut[ed.a1]
-		b0, b1 := bcut[ed.b0], bcut[ed.b1]
+	for _, ed := range diffseq.DiffSlice(as, bs) {
+		a0, a1 := acut[ed.A0], acut[ed.A1]
+		b0, b1 := bcut[ed.B0], bcut[ed.B1]
 		ee := e.subf(reflectString, "[%d:%d]", a0, a1)
 		ee.emitf("%+q != %+q", a[a0:a1], b[b0:b1])
 	}
@@ -79,9 +77,8 @@ func (df *diffTextFormatter) Format(f fmt.State, verb rune) {
 	fmt.Fprintf(f, "+++ %s\n", df.bLabel)
 	as := strings.Split(df.a, "\n")
 	bs := strings.Split(df.b, "\n")
-	ab := &slicePair[string]{a: as, b: bs}
 
-	merged := merge(myers.Diff(context.Background(), ab))
+	merged := diffseq.DiffSlice(as, bs)
 
 	for i := 0; i < len(merged); {
 		ed := merged[i]
@@ -94,16 +91,16 @@ func (df *diffTextFormatter) Format(f fmt.State, verb rune) {
 
 		a0, b0 := 0, 0
 		a1, b1 := len(as), len(bs)
-		if n := ed.a0 - nContext; n > 0 {
+		if n := ed.A0 - nContext; n > 0 {
 			a0 = n
 		}
-		if n := ed.b0 - nContext; n > 0 {
+		if n := ed.B0 - nContext; n > 0 {
 			b0 = n
 		}
-		if n := ed1.a1 + nContext; n < a1 {
+		if n := ed1.A1 + nContext; n < a1 {
 			a1 = n
 		}
-		if n := ed1.b1 + nContext; n < b1 {
+		if n := ed1.B1 + nContext; n < b1 {
 			b1 = n
 		}
 
@@ -112,24 +109,24 @@ func (df *diffTextFormatter) Format(f fmt.State, verb rune) {
 			lineRange(b0, b1-b0),
 		)
 		for a0 < a1 || b0 < b1 {
-			if a0 < ed.a0 || i > i1 {
+			if a0 < ed.A0 || i > i1 {
 				io.WriteString(f, " ")
 				vis.WriteString(f, as[a0])
 				io.WriteString(f, "\n")
 				a0++
 				b0++
-			} else if a0 < ed.a1 {
+			} else if a0 < ed.A1 {
 				io.WriteString(f, "-")
 				vis.WriteString(f, as[a0])
 				io.WriteString(f, "\n")
 				a0++
-			} else if b0 < ed.b1 {
+			} else if b0 < ed.B1 {
 				io.WriteString(f, "+")
 				vis.WriteString(f, bs[b0])
 				io.WriteString(f, "\n")
 				b0++
 			}
-			if a0 >= ed.a1 && b0 >= ed.b1 {
+			if a0 >= ed.A1 && b0 >= ed.B1 {
 				i++
 				if i < len(merged) {
 					ed = merged[i]
@@ -140,8 +137,8 @@ func (df *diffTextFormatter) Format(f fmt.State, verb rune) {
 	}
 }
 
-func aIsClose(e []edit, i int) bool { return e[i].a0-e[i-1].a1 <= 2*nContext }
-func bIsClose(e []edit, i int) bool { return e[i].b0-e[i-1].b1 <= 2*nContext }
+func aIsClose(e []diffseq.Edit, i int) bool { return e[i].A0-e[i-1].A1 <= 2*nContext }
+func bIsClose(e []diffseq.Edit, i int) bool { return e[i].B0-e[i-1].B1 <= 2*nContext }
 
 func lineRange(r0, r1 int) string {
 	switch r1 - r0 {
@@ -152,12 +149,6 @@ func lineRange(r0, r1 int) string {
 	}
 	return fmt.Sprintf("%d,%d", r0+1, r1-r0)
 }
-
-type slicePair[T comparable] struct{ a, b []T }
-
-func (ab *slicePair[T]) LenA() int             { return len(ab.a) }
-func (ab *slicePair[T]) LenB() int             { return len(ab.b) }
-func (ab *slicePair[T]) Equal(ai, bi int) bool { return ab.a[ai] == ab.b[bi] }
 
 func accum(a []string) (is []int) {
 	n, is := 0, append(is, 0)
@@ -177,12 +168,12 @@ func splitRunes(s string) (a []string) {
 	return a
 }
 
-func wsFilter(ed edit, as, bs []string) *strings.Replacer {
-	if ed.a1-ed.a0 != ed.b1-ed.b0 {
+func wsFilter(ed diffseq.Edit, as, bs []string) *strings.Replacer {
+	if ed.A1-ed.A0 != ed.B1-ed.B0 {
 		return identity
 	}
-	for i := 0; i < ed.a1-ed.a0; i++ {
-		if stripWS.Replace(as[ed.a0+i]) != stripWS.Replace(bs[ed.b0+i]) {
+	for i := 0; i < ed.A1-ed.A0; i++ {
+		if stripWS.Replace(as[ed.A0+i]) != stripWS.Replace(bs[ed.B0+i]) {
 			return identity
 		}
 	}
