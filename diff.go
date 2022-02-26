@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/rogpeppe/go-internal/fmtsort"
+	"kr.dev/diff/internal/diffseq"
 )
 
 var (
@@ -241,7 +242,7 @@ func (d *differ) each(a, b any) {
 	d.walk(e, av, bv, true, true)
 }
 
-func (d *differ) equalAsIs(av, bv reflect.Value) bool {
+func (d *differ) equal(av, bv reflect.Value, xformOk bool) bool {
 	d2 := &differ{
 		config: d.config,
 		aSeen:  map[visit]visit{},
@@ -249,7 +250,7 @@ func (d *differ) equalAsIs(av, bv reflect.Value) bool {
 	}
 	d2.config.format = nil
 	e := &countEmitter{}
-	d2.walk(e, av, bv, false, true)
+	d2.walk(e, av, bv, xformOk, true)
 	return !e.didEmit()
 }
 
@@ -301,7 +302,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 			return
 		}
 		e = e.subf(t, "(original)")
-		if d.equalAsIs(av, bv) {
+		if d.equal(av, bv, false) {
 			e.emitf("equal")
 			return
 		}
@@ -309,7 +310,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 
 	// Check for a format func.
 	if ff, ok := d.config.format[t]; ok {
-		if !d.equalAsIs(av, bv) {
+		if !d.equal(av, bv, false) {
 			s := reflectApply(ff, av, bv).String()
 			e.emitf("%s", s)
 		}
@@ -323,10 +324,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	// See "go doc reflect DeepEqual" for more.
 	switch t.Kind() {
 	case reflect.Array:
-		// TODO(kr): fancy diff (histogram, myers)
-		for i := 0; i < t.Len(); i++ {
-			d.walk(e.subf(t, "[%d]", i), av.Index(i), bv.Index(i), true, false)
-		}
+		d.seqDiff(e, av, bv)
 	case reflect.Struct:
 		for i := 0; i < t.NumField(); i++ {
 			afield := access(av.Field(i))
@@ -389,15 +387,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 			d.stringDiff(e, as.String(), bs.String())
 			break
 		}
-		// TODO(kr): fancy diff (histogram, myers)
-		n := av.Len()
-		if blen := bv.Len(); n != blen {
-			e.emitf("{len %d} != {len %d}", n, blen)
-			return
-		}
-		for i := 0; i < n; i++ {
-			d.walk(e.subf(t, "[%d]", i), av.Index(i), bv.Index(i), true, false)
-		}
+		d.seqDiff(e, av, bv)
 	case reflect.Bool:
 		d.eqtest(e, av, bv, av.Bool(), bv.Bool(), wantType)
 	case reflect.Int, reflect.Int8, reflect.Int16,
@@ -453,6 +443,29 @@ func (d *differ) stringDiff(e emitfer, a, b string) {
 
 	// TODO(kr): binary diff, hex, something
 	e.emitf("binary: %+q != %+q", a, b)
+}
+
+func (d *differ) seqDiff(e emitfer, as, bs reflect.Value) {
+	for _, ed := range diffseq.Diff(as, bs, d.itemEq) {
+		a0, a1 := ed.A0, ed.A1
+		b0, b1 := ed.B0, ed.B1
+		if n := a1 - a0; n == b1-b0 {
+			for i := 0; i < n; i++ {
+				d.walk(e.subf(as.Type(), "[%d]", a0+i), as.Index(a0+i), bs.Index(b0+i), true, false)
+			}
+			continue
+		}
+		ee := e.subf(reflectString, "[%d:%d]", a0, a1)
+		afmt := formatShort(as.Slice(a0, a1), false)
+		bfmt := formatShort(bs.Slice(b0, b1), false)
+		ee.emitf("%v != %v", afmt, bfmt)
+	}
+}
+
+func (d *differ) itemEq(a, b reflect.Value, ai, bi int) bool {
+	av := a.Index(ai)
+	bv := b.Index(bi)
+	return d.equal(av, bv, true)
 }
 
 func sortedKeys(maps ...reflect.Value) []reflect.Value {
