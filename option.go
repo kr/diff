@@ -216,9 +216,10 @@ func checkFieldsExist[T any](fields []string) {
 // the transform (one on each side) are then compared, and
 // their diffs emitted. See also ShowOriginal.
 //
-// The result can be any type, not just T. It also doesn't
-// have to be the same type as the value returned by the
-// transform on the other side.
+// Function f may return any type, not just T. In
+// particular, during a single comparison, f may return a
+// different type on each side (and this will result in a
+// difference being reported).
 //
 // See TransformRemove to remove a transform.
 func Transform[T any](f func(T) any) Option {
