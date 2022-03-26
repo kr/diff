@@ -446,6 +446,7 @@ func (d *differ) stringDiff(e emitfer, a, b string) {
 }
 
 func (d *differ) seqDiff(e emitfer, as, bs reflect.Value) {
+	d.config.helper()
 	for _, ed := range diffseq.Diff(as, bs, d.itemEq) {
 		a0, a1 := ed.A0, ed.A1
 		b0, b1 := ed.B0, ed.B1
