@@ -145,6 +145,10 @@ func TestUnequal(t *testing.T) {
 		{"", "a"},
 		{make(chan int), make(chan int)},
 		{unsafe.Pointer(ptr(0)), unsafe.Pointer(ptr(0))},
+		{
+			map[int]struct{ F int }{0: {}},
+			map[int]struct{ F int }{0: {}},
+		},
 	}
 
 	for i, tt := range cases {

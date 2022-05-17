@@ -353,8 +353,8 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 
 		for _, k := range sortedKeys(av, bv) {
 			esub := e.subf(t, "[%#v]", k)
-			ak := av.MapIndex(k)
-			bk := bv.MapIndex(k)
+			ak := maybeCopy(av.MapIndex(k))
+			bk := maybeCopy(bv.MapIndex(k))
 			esub.set(ak, bk)
 			if ak.IsValid() && bk.IsValid() {
 				d.walk(esub, ak, bk, true, false)
@@ -498,4 +498,11 @@ func access(v reflect.Value) reflect.Value {
 func stackDepth() int {
 	pc := make([]uintptr, 1000)
 	return runtime.Callers(0, pc)
+}
+
+func maybeCopy(v reflect.Value) reflect.Value {
+	if v.Kind() == reflect.Struct {
+		return reflect.ValueOf(v.Type()).Elem()
+	}
+	return v
 }
