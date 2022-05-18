@@ -62,6 +62,10 @@ func TestEqual(t *testing.T) {
 		ab(make(chan int)),
 		ab(unsafe.Pointer(new(int))),
 		ab(unsafe.Pointer(nil)),
+		{
+			map[int]struct{ F int }{0: {}},
+			map[int]struct{ F int }{0: {}},
+		},
 	}
 
 	for _, tt := range cases {
