@@ -311,6 +311,20 @@ func TestLog(t *testing.T) {
 	}
 }
 
+func TestSliceType(t *testing.T) {
+	var got string
+	gotp := (*stringPrinter)(&got)
+	a := []struct{}{{}, {}, {}}
+	b := []struct{}{{}, {}}
+	diff.Each(gotp.Printf, a, b)
+	want := "[]struct{}[2:3]: {{}} != {}\n"
+	if got != want {
+		t.Errorf("bad diff")
+		t.Logf("got:\n%s", got)
+		t.Logf("want:\n%s", want)
+	}
+}
+
 func TestShowOrig(t *testing.T) {
 	a, b := 1, 2
 
