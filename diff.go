@@ -456,7 +456,7 @@ func (d *differ) seqDiff(e emitfer, as, bs reflect.Value) {
 			}
 			continue
 		}
-		ee := e.subf(reflectString, "[%d:%d]", a0, a1)
+		ee := e.subf(as.Type(), "[%d:%d]", a0, a1)
 		afmt := formatShort(as.Slice(a0, a1), false)
 		bfmt := formatShort(bs.Slice(b0, b1), false)
 		ee.emitf("%v != %v", afmt, bfmt)
