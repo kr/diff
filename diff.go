@@ -119,29 +119,20 @@ type visit struct {
 	t reflect.Type
 }
 
-type emitfer interface {
-	set(av, bv reflect.Value)
-	emitf(format string, arg ...any)
-	subf(t reflect.Type, format string, arg ...any) emitfer
-	didEmit() bool
-}
-
-type printEmitter struct {
-	config   config // not pointer, printEmitters have different configs
+type emitter struct {
+	config   config // not pointer, emitters have different configs
 	rootType string
 	path     []string
-	did      bool
 	av, bv   reflect.Value
 }
 
-func (e *printEmitter) set(av, bv reflect.Value) {
+func (e *emitter) set(av, bv reflect.Value) {
 	e.av = av
 	e.bv = bv
 }
 
-func (e *printEmitter) emitf(format string, arg ...any) {
+func (e *emitter) emitf(format string, arg ...any) {
 	e.config.helper()
-	e.did = true
 	switch e.config.level {
 	case auto:
 		var p string
@@ -172,46 +163,17 @@ func (e *printEmitter) emitf(format string, arg ...any) {
 	}
 }
 
-func (e *printEmitter) subf(t reflect.Type, format string, arg ...any) emitfer {
+func (e *emitter) subf(t reflect.Type, format string, arg ...any) *emitter {
 	if e.rootType == "" {
 		var buf bytes.Buffer
 		writeType(&buf, t)
 		e.rootType = buf.String()
 	}
-	pe := &printEmitter{
+	return &emitter{
 		config:   e.config,
 		rootType: e.rootType,
 		path:     append(e.path, fmt.Sprintf(format, arg...)),
-		did:      false,
 	}
-	pe.config.sink = func(format string, a ...any) {
-		e.config.helper()
-		e.did = true
-		e.config.sink(format, a...)
-	}
-	return pe
-}
-
-func (e *printEmitter) didEmit() bool {
-	return e.did
-}
-
-type countEmitter struct {
-	n int
-}
-
-func (e *countEmitter) set(av, bv reflect.Value) {}
-
-func (e *countEmitter) emitf(format string, arg ...any) {
-	e.n++
-}
-
-func (e *countEmitter) subf(t reflect.Type, format string, arg ...any) emitfer {
-	return e
-}
-
-func (e *countEmitter) didEmit() bool {
-	return e.n > 0
 }
 
 func reflectApply(f reflect.Value, v ...reflect.Value) reflect.Value {
@@ -236,25 +198,27 @@ func newDiffer(h func(), f func(format string, arg ...any), opt ...Option) *diff
 
 func (d *differ) each(a, b any) {
 	d.config.helper()
-	e := &printEmitter{config: d.config}
+	e := &emitter{config: d.config}
 	av := addressable(reflect.ValueOf(a))
 	bv := addressable(reflect.ValueOf(b))
 	d.walk(e, av, bv, true, true)
 }
 
 func (d *differ) equal(av, bv reflect.Value, xformOk bool) bool {
+	var n int
 	d2 := &differ{
 		config: d.config,
 		aSeen:  map[visit]visit{},
 		bSeen:  map[visit]visit{},
 	}
 	d2.config.format = nil
-	e := &countEmitter{}
+	d2.config.sink = func(string, ...any) { n++ }
+	e := &emitter{config: d2.config}
 	d2.walk(e, av, bv, xformOk, true)
-	return !e.didEmit()
+	return n == 0
 }
 
-func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
+func (d *differ) walk(e *emitter, av, bv reflect.Value, xformOk, wantType bool) {
 	d.config.helper()
 	e.set(av, bv)
 	if !av.IsValid() && !bv.IsValid() {
@@ -411,7 +375,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	}
 }
 
-func (d *differ) eqtest(e emitfer, av, bv reflect.Value, a, b any, wantType bool) {
+func (d *differ) eqtest(e *emitter, av, bv reflect.Value, a, b any, wantType bool) {
 	d.config.helper()
 	if a != b {
 		e.emitf("%v != %v",
@@ -421,7 +385,7 @@ func (d *differ) eqtest(e emitfer, av, bv reflect.Value, a, b any, wantType bool
 	}
 }
 
-func (d *differ) emitPointers(e emitfer, av, bv reflect.Value, wantType bool) {
+func (d *differ) emitPointers(e *emitter, av, bv reflect.Value, wantType bool) {
 	d.config.helper()
 	e.emitf("%v != %v",
 		formatShort(av, wantType),
@@ -429,7 +393,7 @@ func (d *differ) emitPointers(e emitfer, av, bv reflect.Value, wantType bool) {
 	)
 }
 
-func (d *differ) stringDiff(e emitfer, t reflect.Type, a, b string) {
+func (d *differ) stringDiff(e *emitter, t reflect.Type, a, b string) {
 	d.config.helper()
 
 	if a == b {
@@ -445,7 +409,7 @@ func (d *differ) stringDiff(e emitfer, t reflect.Type, a, b string) {
 	e.emitf("binary: %+q != %+q", a, b)
 }
 
-func (d *differ) seqDiff(e emitfer, as, bs reflect.Value) {
+func (d *differ) seqDiff(e *emitter, as, bs reflect.Value) {
 	d.config.helper()
 	for _, ed := range diffseq.Diff(as, bs, d.itemEq) {
 		a0, a1 := ed.A0, ed.A1
