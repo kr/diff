@@ -384,7 +384,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 		if t.ConvertibleTo(reflectBytes) {
 			as := av.Convert(reflectString)
 			bs := bv.Convert(reflectString)
-			d.stringDiff(e, as.String(), bs.String())
+			d.stringDiff(e, t, as.String(), bs.String())
 			break
 		}
 		d.seqDiff(e, av, bv)
@@ -401,7 +401,7 @@ func (d *differ) walk(e emitfer, av, bv reflect.Value, xformOk, wantType bool) {
 	case reflect.Complex64, reflect.Complex128:
 		d.eqtest(e, av, bv, av.Complex(), bv.Complex(), wantType)
 	case reflect.String:
-		d.stringDiff(e, av.String(), bv.String())
+		d.stringDiff(e, t, av.String(), bv.String())
 	case reflect.Chan, reflect.UnsafePointer:
 		if a, b := av.Pointer(), bv.Pointer(); a != b {
 			d.emitPointers(e, av, bv, wantType)
@@ -429,7 +429,7 @@ func (d *differ) emitPointers(e emitfer, av, bv reflect.Value, wantType bool) {
 	)
 }
 
-func (d *differ) stringDiff(e emitfer, a, b string) {
+func (d *differ) stringDiff(e emitfer, t reflect.Type, a, b string) {
 	d.config.helper()
 
 	if a == b {
@@ -437,7 +437,7 @@ func (d *differ) stringDiff(e emitfer, a, b string) {
 	}
 
 	if utf8.ValidString(a) && utf8.ValidString(b) {
-		d.textDiff(e, a, b)
+		d.textDiff(e, t, a, b)
 		return
 	}
 
