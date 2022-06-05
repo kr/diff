@@ -3,6 +3,7 @@ package diff
 import (
 	"fmt"
 	"io"
+	"reflect"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -18,7 +19,7 @@ var (
 	visWS    = strings.NewReplacer(" ", "\u00b7", "\t", " \u2192 ")
 )
 
-func (d *differ) textDiff(e emitfer, a, b string) {
+func (d *differ) textDiff(e emitfer, t reflect.Type, a, b string) {
 	d.config.helper()
 
 	// TODO(kr): check for whitespace-only changes, use special format
@@ -44,23 +45,23 @@ func (d *differ) textDiff(e emitfer, a, b string) {
 	if textCheck(a, " ", 3, 10) && textCheck(b, " ", 3, 10) {
 		as := strings.SplitAfter(a, " ")
 		bs := strings.SplitAfter(b, " ")
-		textDiffInline(e, a, b, as, bs)
+		textDiffInline(e, t, a, b, as, bs)
 		return
 	}
 
 	// Last resort is rune-by-rune.
 	as := splitRunes(a)
 	bs := splitRunes(b)
-	textDiffInline(e, a, b, as, bs)
+	textDiffInline(e, t, a, b, as, bs)
 }
 
-func textDiffInline(e emitfer, a, b string, as, bs []string) {
+func textDiffInline(e emitfer, t reflect.Type, a, b string, as, bs []string) {
 	acut := accum(as)
 	bcut := accum(bs)
 	for _, ed := range diffseq.DiffSlice(as, bs) {
 		a0, a1 := acut[ed.A0], acut[ed.A1]
 		b0, b1 := bcut[ed.B0], bcut[ed.B1]
-		ee := e.subf(reflectString, "[%d:%d]", a0, a1)
+		ee := e.subf(t, "[%d:%d]", a0, a1)
 		ee.emitf("%+q != %+q", a[a0:a1], b[b0:b1])
 	}
 }

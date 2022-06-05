@@ -52,6 +52,21 @@ func TestLogMyers(t *testing.T) {
 	}
 }
 
+func TestStringTypeOutput(t *testing.T) {
+	var got string
+	gotp := (*stringPrinter)(&got)
+	type S []byte
+	a := S("foooooooooooo bar baz")
+	b := S("foooooooooooo bar")
+	diff.Each(gotp.Printf, a, b)
+	want := `diff_test.S[17:21]: " baz" != ""` + "\n"
+	if got != want {
+		t.Errorf("bad diff")
+		t.Logf("got:\n%s", got)
+		t.Logf("want:\n%s", want)
+	}
+}
+
 func testStringDiff(t *testing.T, want string, a, b any) {
 	t.Helper()
 	var got string
