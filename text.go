@@ -19,19 +19,19 @@ var (
 	visWS    = strings.NewReplacer(" ", "\u00b7", "\t", " \u2192 ")
 )
 
-func (d *differ) textDiff(e *emitter, t reflect.Type, a, b string) {
-	d.config.helper()
+func textDiff(e *emitter, t reflect.Type, a, b string) {
+	e.config.helper()
 
 	// TODO(kr): check for whitespace-only changes, use special format
 
-	if d.config.level == full {
+	if e.config.level == full {
 		e.emitf("")
 		return
 	}
 
 	// Check for multi-line.
 	if textCheck(a, "\n", 2, 72) && textCheck(b, "\n", 2, 72) {
-		e.emitf("\n%s", &diffTextFormatter{a, b, d.config.aLabel, d.config.bLabel})
+		e.emitf("\n%s", &diffTextFormatter{a, b, e.config.aLabel, e.config.bLabel})
 		return
 	}
 

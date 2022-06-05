@@ -31,8 +31,9 @@ var (
 // Values in opt apply in addition to (and override) the defaults.
 func Each(f func(format string, arg ...any) (int, error), a, b any, opt ...Option) {
 	fdis := func(format string, arg ...any) { f(format, arg...) }
-	d := newDiffer(func() {}, fdis, opt...)
-	d.each(a, b)
+	var c config
+	c.init(func() {}, fdis, opt...)
+	each(a, b, &c)
 }
 
 // Log compares values a and b, printing each difference to its logger.
@@ -45,13 +46,13 @@ func Each(f func(format string, arg ...any) (int, error), a, b any, opt ...Optio
 // Values in opt apply in addition to (and override) the defaults.
 func Log(a, b any, opt ...Option) {
 	depth := stackDepth()
-	var d *differ
+	var c config
 	f := func(format string, arg ...any) {
-		dd := stackDepth() - depth
-		d.config.output.Output(dd+2, fmt.Sprintf(format, arg...))
+		d := stackDepth() - depth
+		c.output.Output(d+2, fmt.Sprintf(format, arg...))
 	}
-	d = newDiffer(func() {}, f, opt...)
-	d.each(a, b)
+	c.init(func() {}, f, opt...)
+	each(a, b, &c)
 }
 
 // Test compares values got and want, calling f for each difference it finds.
@@ -68,23 +69,18 @@ func Log(a, b any, opt ...Option) {
 // Values in opt apply in addition to (and override) the defaults.
 func Test(h Helperer, f func(format string, arg ...any), got, want any, opt ...Option) {
 	h.Helper()
-	d := newDiffer(h.Helper, f, opt...)
-	d.config.inTest = true
-	d.config.aLabel = "got"
-	d.config.bLabel = "want"
-	d.each(got, want)
+	var c config
+	c.init(h.Helper, f, opt...)
+	c.inTest = true
+	c.aLabel = "got"
+	c.bLabel = "want"
+	each(got, want, &c)
 }
 
 // Helperer marks the caller as a helper function.
 // It is satisfied by *testing.T and *testing.B.
 type Helperer interface {
 	Helper()
-}
-
-type differ struct {
-	config config
-	aSeen  map[visit]visit
-	bSeen  map[visit]visit
 }
 
 type config struct {
@@ -114,6 +110,17 @@ type config struct {
 	bLabel string
 }
 
+func (c *config) init(h func(), f func(format string, arg ...any), opt ...Option) {
+	c.sink = f
+	c.helper = h
+	c.xform = map[reflect.Type]reflect.Value{}
+	c.format = map[reflect.Type]reflect.Value{}
+	c.aLabel = "a"
+	c.bLabel = "b"
+	defaultOpt.apply(c)
+	OptionList(opt...).apply(c)
+}
+
 type visit struct {
 	p unsafe.Pointer
 	t reflect.Type
@@ -124,6 +131,9 @@ type emitter struct {
 	rootType string
 	path     []string
 	av, bv   reflect.Value
+
+	aSeen map[visit]visit
+	bSeen map[visit]visit
 }
 
 func (e *emitter) set(av, bv reflect.Value) {
@@ -173,6 +183,8 @@ func (e *emitter) subf(t reflect.Type, format string, arg ...any) *emitter {
 		config:   e.config,
 		rootType: e.rootType,
 		path:     append(e.path, fmt.Sprintf(format, arg...)),
+		aSeen:    e.aSeen,
+		bSeen:    e.bSeen,
 	}
 }
 
@@ -180,46 +192,33 @@ func reflectApply(f reflect.Value, v ...reflect.Value) reflect.Value {
 	return f.Call(v)[0]
 }
 
-func newDiffer(h func(), f func(format string, arg ...any), opt ...Option) *differ {
-	d := &differ{
-		aSeen: map[visit]visit{},
-		bSeen: map[visit]visit{},
-	}
-	d.config.sink = f
-	d.config.helper = h
-	d.config.xform = map[reflect.Type]reflect.Value{}
-	d.config.format = map[reflect.Type]reflect.Value{}
-	d.config.aLabel = "a"
-	d.config.bLabel = "b"
-	defaultOpt.apply(&d.config)
-	OptionList(opt...).apply(&d.config)
-	return d
-}
-
-func (d *differ) each(a, b any) {
-	d.config.helper()
-	e := &emitter{config: d.config}
-	av := addressable(reflect.ValueOf(a))
-	bv := addressable(reflect.ValueOf(b))
-	d.walk(e, av, bv, true, true)
-}
-
-func (d *differ) equal(av, bv reflect.Value, xformOk bool) bool {
-	var n int
-	d2 := &differ{
-		config: d.config,
+func each(a, b any, c *config) {
+	c.helper()
+	e := &emitter{
+		config: *c,
 		aSeen:  map[visit]visit{},
 		bSeen:  map[visit]visit{},
 	}
-	d2.config.format = nil
-	d2.config.sink = func(string, ...any) { n++ }
-	e := &emitter{config: d2.config}
-	d2.walk(e, av, bv, xformOk, true)
+	av := addressable(reflect.ValueOf(a))
+	bv := addressable(reflect.ValueOf(b))
+	walk(e, av, bv, true, true)
+}
+
+func equal(av, bv reflect.Value, c *config, xformOk bool) bool {
+	var n int
+	e := &emitter{
+		config: *c,
+		aSeen:  map[visit]visit{},
+		bSeen:  map[visit]visit{},
+	}
+	e.config.format = nil
+	e.config.sink = func(string, ...any) { n++ }
+	walk(e, av, bv, xformOk, true)
 	return n == 0
 }
 
-func (d *differ) walk(e *emitter, av, bv reflect.Value, xformOk, wantType bool) {
-	d.config.helper()
+func walk(e *emitter, av, bv reflect.Value, xformOk, wantType bool) {
+	e.config.helper()
 	e.set(av, bv)
 	if !av.IsValid() && !bv.IsValid() {
 		return
@@ -243,38 +242,38 @@ func (d *differ) walk(e *emitter, av, bv reflect.Value, xformOk, wantType bool) 
 		}
 		avis := visit{unsafe.Pointer(av.Pointer()), t}
 		bvis := visit{unsafe.Pointer(bv.Pointer()), t}
-		if bSeen, ok := d.aSeen[avis]; ok {
+		if bSeen, ok := e.aSeen[avis]; ok {
 			if bSeen != bvis {
 				e.emitf("uneven cycle")
 			}
 			return
 		}
-		if _, ok := d.bSeen[bvis]; ok {
+		if _, ok := e.bSeen[bvis]; ok {
 			e.emitf("uneven cycle")
 			return
 		}
-		d.aSeen[avis] = bvis
-		d.bSeen[bvis] = avis
+		e.aSeen[avis] = bvis
+		e.bSeen[bvis] = avis
 	}
 
 	// Check for a transform func.
-	if xf, haveXform := d.config.xform[t]; xformOk && haveXform {
+	if xf, haveXform := e.config.xform[t]; xformOk && haveXform {
 		ax := addressable(reflectApply(xf, av).Elem())
 		bx := addressable(reflectApply(xf, bv).Elem())
-		d.walk(e.subf(t, "(transformed)"), ax, bx, false, true)
-		if !d.config.showOrig {
+		walk(e.subf(t, "(transformed)"), ax, bx, false, true)
+		if !e.config.showOrig {
 			return
 		}
 		e = e.subf(t, "(original)")
-		if d.equal(av, bv, false) {
+		if equal(av, bv, &e.config, false) {
 			e.emitf("equal")
 			return
 		}
 	}
 
 	// Check for a format func.
-	if ff, ok := d.config.format[t]; ok {
-		if !d.equal(av, bv, false) {
+	if ff, ok := e.config.format[t]; ok {
+		if !equal(av, bv, &e.config, false) {
 			s := reflectApply(ff, av, bv).String()
 			e.emitf("%s", s)
 		}
@@ -288,27 +287,27 @@ func (d *differ) walk(e *emitter, av, bv reflect.Value, xformOk, wantType bool) 
 	// See "go doc reflect DeepEqual" for more.
 	switch t.Kind() {
 	case reflect.Array:
-		d.seqDiff(e, av, bv)
+		seqDiff(e, av, bv)
 	case reflect.Struct:
 		for i := 0; i < t.NumField(); i++ {
 			afield := access(av.Field(i))
 			bfield := access(bv.Field(i))
-			d.walk(e.subf(t, "."+t.Field(i).Name), afield, bfield, true, false)
+			walk(e.subf(t, "."+t.Field(i).Name), afield, bfield, true, false)
 		}
 	case reflect.Func:
-		if d.config.equalFuncs {
+		if e.config.equalFuncs {
 			break
 		}
 		if !av.IsNil() || !bv.IsNil() {
-			d.emitPointers(e, av, bv, wantType)
+			emitPointers(e, av, bv, wantType)
 		}
 	case reflect.Interface:
 		aelem := addressable(av.Elem())
 		belem := addressable(bv.Elem())
-		d.walk(e, aelem, belem, xformOk, true)
+		walk(e, aelem, belem, xformOk, true)
 	case reflect.Map:
 		if av.IsNil() != bv.IsNil() {
-			d.emitPointers(e, av, bv, wantType)
+			emitPointers(e, av, bv, wantType)
 			break
 		}
 		if av.Pointer() == bv.Pointer() {
@@ -321,7 +320,7 @@ func (d *differ) walk(e *emitter, av, bv reflect.Value, xformOk, wantType bool) 
 			bk := addressable(bv.MapIndex(k))
 			esub.set(ak, bk)
 			if ak.IsValid() && bk.IsValid() {
-				d.walk(esub, ak, bk, true, false)
+				walk(esub, ak, bk, true, false)
 			} else if ak.IsValid() {
 				esub.emitf("(removed)")
 			} else { // k in bv
@@ -336,10 +335,10 @@ func (d *differ) walk(e *emitter, av, bv reflect.Value, xformOk, wantType bool) 
 			e.emitf("%v != %v", formatShort(av, wantType), formatShort(bv, wantType))
 			break
 		}
-		d.walk(e, av.Elem(), bv.Elem(), true, wantType)
+		walk(e, av.Elem(), bv.Elem(), true, wantType)
 	case reflect.Slice:
 		if av.IsNil() != bv.IsNil() {
-			d.emitPointers(e, av, bv, wantType)
+			emitPointers(e, av, bv, wantType)
 			break
 		}
 		if av.Len() == bv.Len() && av.Pointer() == bv.Pointer() {
@@ -348,35 +347,35 @@ func (d *differ) walk(e *emitter, av, bv reflect.Value, xformOk, wantType bool) 
 		if t.ConvertibleTo(reflectBytes) {
 			as := av.Convert(reflectString)
 			bs := bv.Convert(reflectString)
-			d.stringDiff(e, t, as.String(), bs.String())
+			stringDiff(e, t, as.String(), bs.String())
 			break
 		}
-		d.seqDiff(e, av, bv)
+		seqDiff(e, av, bv)
 	case reflect.Bool:
-		d.eqtest(e, av, bv, av.Bool(), bv.Bool(), wantType)
+		eqtest(e, av, bv, av.Bool(), bv.Bool(), wantType)
 	case reflect.Int, reflect.Int8, reflect.Int16,
 		reflect.Int32, reflect.Int64:
-		d.eqtest(e, av, bv, av.Int(), bv.Int(), wantType)
+		eqtest(e, av, bv, av.Int(), bv.Int(), wantType)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16,
 		reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		d.eqtest(e, av, bv, av.Uint(), bv.Uint(), wantType)
+		eqtest(e, av, bv, av.Uint(), bv.Uint(), wantType)
 	case reflect.Float32, reflect.Float64:
-		d.eqtest(e, av, bv, av.Float(), bv.Float(), wantType)
+		eqtest(e, av, bv, av.Float(), bv.Float(), wantType)
 	case reflect.Complex64, reflect.Complex128:
-		d.eqtest(e, av, bv, av.Complex(), bv.Complex(), wantType)
+		eqtest(e, av, bv, av.Complex(), bv.Complex(), wantType)
 	case reflect.String:
-		d.stringDiff(e, t, av.String(), bv.String())
+		stringDiff(e, t, av.String(), bv.String())
 	case reflect.Chan, reflect.UnsafePointer:
 		if a, b := av.Pointer(), bv.Pointer(); a != b {
-			d.emitPointers(e, av, bv, wantType)
+			emitPointers(e, av, bv, wantType)
 		}
 	default:
 		panic("diff: unknown reflect.Kind " + t.Kind().String())
 	}
 }
 
-func (d *differ) eqtest(e *emitter, av, bv reflect.Value, a, b any, wantType bool) {
-	d.config.helper()
+func eqtest(e *emitter, av, bv reflect.Value, a, b any, wantType bool) {
+	e.config.helper()
 	if a != b {
 		e.emitf("%v != %v",
 			formatShort(av, wantType),
@@ -385,23 +384,23 @@ func (d *differ) eqtest(e *emitter, av, bv reflect.Value, a, b any, wantType boo
 	}
 }
 
-func (d *differ) emitPointers(e *emitter, av, bv reflect.Value, wantType bool) {
-	d.config.helper()
+func emitPointers(e *emitter, av, bv reflect.Value, wantType bool) {
+	e.config.helper()
 	e.emitf("%v != %v",
 		formatShort(av, wantType),
 		formatShort(bv, wantType),
 	)
 }
 
-func (d *differ) stringDiff(e *emitter, t reflect.Type, a, b string) {
-	d.config.helper()
+func stringDiff(e *emitter, t reflect.Type, a, b string) {
+	e.config.helper()
 
 	if a == b {
 		return
 	}
 
 	if utf8.ValidString(a) && utf8.ValidString(b) {
-		d.textDiff(e, t, a, b)
+		textDiff(e, t, a, b)
 		return
 	}
 
@@ -409,14 +408,19 @@ func (d *differ) stringDiff(e *emitter, t reflect.Type, a, b string) {
 	e.emitf("binary: %+q != %+q", a, b)
 }
 
-func (d *differ) seqDiff(e *emitter, as, bs reflect.Value) {
-	d.config.helper()
-	for _, ed := range diffseq.Diff(as, bs, d.itemEq) {
+func seqDiff(e *emitter, as, bs reflect.Value) {
+	e.config.helper()
+	eq := func(a, b reflect.Value, ai, bi int) bool {
+		av := a.Index(ai)
+		bv := b.Index(bi)
+		return equal(av, bv, &e.config, true)
+	}
+	for _, ed := range diffseq.Diff(as, bs, eq) {
 		a0, a1 := ed.A0, ed.A1
 		b0, b1 := ed.B0, ed.B1
 		if n := a1 - a0; n == b1-b0 {
 			for i := 0; i < n; i++ {
-				d.walk(e.subf(as.Type(), "[%d]", a0+i), as.Index(a0+i), bs.Index(b0+i), true, false)
+				walk(e.subf(as.Type(), "[%d]", a0+i), as.Index(a0+i), bs.Index(b0+i), true, false)
 			}
 			continue
 		}
@@ -425,12 +429,6 @@ func (d *differ) seqDiff(e *emitter, as, bs reflect.Value) {
 		bfmt := formatShort(bs.Slice(b0, b1), false)
 		ee.emitf("%v != %v", afmt, bfmt)
 	}
-}
-
-func (d *differ) itemEq(a, b reflect.Value, ai, bi int) bool {
-	av := a.Index(ai)
-	bv := b.Index(bi)
-	return d.equal(av, bv, true)
 }
 
 func sortedKeys(maps ...reflect.Value) []reflect.Value {
