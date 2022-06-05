@@ -19,7 +19,7 @@ var (
 	visWS    = strings.NewReplacer(" ", "\u00b7", "\t", " \u2192 ")
 )
 
-func (d *differ) textDiff(e emitfer, t reflect.Type, a, b string) {
+func (d *differ) textDiff(e *emitter, t reflect.Type, a, b string) {
 	d.config.helper()
 
 	// TODO(kr): check for whitespace-only changes, use special format
@@ -55,7 +55,7 @@ func (d *differ) textDiff(e emitfer, t reflect.Type, a, b string) {
 	textDiffInline(e, t, a, b, as, bs)
 }
 
-func textDiffInline(e emitfer, t reflect.Type, a, b string, as, bs []string) {
+func textDiffInline(e *emitter, t reflect.Type, a, b string, as, bs []string) {
 	acut := accum(as)
 	bcut := accum(bs)
 	for _, ed := range diffseq.DiffSlice(as, bs) {
