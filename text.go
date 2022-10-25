@@ -56,6 +56,8 @@ func textDiff(e *emitter, t reflect.Type, a, b string) {
 }
 
 func textDiffInline(e *emitter, t reflect.Type, a, b string, as, bs []string) {
+	e.config.helper()
+
 	acut := accum(as)
 	bcut := accum(bs)
 	for _, ed := range diffseq.DiffSlice(as, bs) {
