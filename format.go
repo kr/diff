@@ -92,14 +92,8 @@ func (f *formatter) writeTo(w io.Writer, v reflect.Value, wantType bool, depth i
 				f.writeTo(ww, v.Index(i), false, depth+1)
 				io.WriteString(ww, ",\n")
 			}
-		} else {
-			for i := 0; i < t.Len(); i++ {
-				if i > 0 {
-					io.WriteString(w, ", ...")
-					break
-				}
-				f.writeTo(w, v.Index(i), false, depth+1)
-			}
+		} else if t.Len() == 1 {
+			f.writeTo(w, v.Index(0), false, depth+1)
 		}
 		io.WriteString(w, "}")
 	case reflect.Struct:
