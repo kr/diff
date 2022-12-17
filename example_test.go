@@ -20,7 +20,11 @@ func ExampleEach() {
 	diff.Each(fmt.Printf, a, b)
 	// Output:
 	// net.Dialer.Timeout: 5s != 10s
-	// net.Dialer.LocalAddr: nil != &net.TCPAddr{IP:nil, ...}
+	// net.Dialer.LocalAddr: nil != &net.TCPAddr{
+	//     IP:   nil,
+	//     Port: 0,
+	//     Zone: "",
+	// }
 }
 
 func ExampleLog() {

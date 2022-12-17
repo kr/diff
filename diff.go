@@ -176,7 +176,7 @@ func (e *emitter) emitf(format string, arg ...any) {
 func (e *emitter) subf(t reflect.Type, format string, arg ...any) *emitter {
 	if e.rootType == "" {
 		var buf bytes.Buffer
-		writeType(&buf, t)
+		writeType(&buf, t, false)
 		e.rootType = buf.String()
 	}
 	return &emitter{

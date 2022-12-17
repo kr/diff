@@ -100,15 +100,250 @@ func TestWriteShort(t *testing.T) {
 	}{
 		{nil, "nil"},
 		{[1]int{0}, "[1]int{0}"},
-		{[2]int{}, "[2]int{0, ...}"},
+		{[2]int{}, "[2]int{\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			"}",
+		},
+		{[20]int{}, "[20]int{\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			"}",
+		},
+		{[21]int{}, "[21]int{\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "0,\n" +
+			tab + "...\n" +
+			"}",
+		},
 		{struct{ V int }{0}, "struct{ V int }{V:0}"},
-		{struct{ V, U int }{}, "struct{ V int; U int }{V:0, ...}"},
+		{struct{ V, U int }{}, "struct{\n" +
+			tab + "V int\n" +
+			tab + "U int\n" +
+			"}{\n" +
+			tab + "V: 0,\n" +
+			tab + "U: 0,\n" +
+			"}",
+		},
+		{struct{ V, U int }{}, "struct{\n" +
+			tab + "V int\n" +
+			tab + "U int\n" +
+			"}{\n" +
+			tab + "V: 0,\n" +
+			tab + "U: 0,\n" +
+			"}"},
+		{
+			struct {
+				A, B, C, D, E, F, G, H, I, J int
+				K, L, M, N, O, P, Q, R, S, T int
+			}{},
+			"struct{\n" +
+				tab + "A int\n" +
+				tab + "B int\n" +
+				tab + "C int\n" +
+				tab + "D int\n" +
+				tab + "E int\n" +
+				tab + "F int\n" +
+				tab + "G int\n" +
+				tab + "H int\n" +
+				tab + "I int\n" +
+				tab + "J int\n" +
+				tab + "K int\n" +
+				tab + "L int\n" +
+				tab + "M int\n" +
+				tab + "N int\n" +
+				tab + "O int\n" +
+				tab + "P int\n" +
+				tab + "Q int\n" +
+				tab + "R int\n" +
+				tab + "S int\n" +
+				tab + "T int\n" +
+				"}{\n" +
+				tab + "A: 0,\n" +
+				tab + "B: 0,\n" +
+				tab + "C: 0,\n" +
+				tab + "D: 0,\n" +
+				tab + "E: 0,\n" +
+				tab + "F: 0,\n" +
+				tab + "G: 0,\n" +
+				tab + "H: 0,\n" +
+				tab + "I: 0,\n" +
+				tab + "J: 0,\n" +
+				tab + "K: 0,\n" +
+				tab + "L: 0,\n" +
+				tab + "M: 0,\n" +
+				tab + "N: 0,\n" +
+				tab + "O: 0,\n" +
+				tab + "P: 0,\n" +
+				tab + "Q: 0,\n" +
+				tab + "R: 0,\n" +
+				tab + "S: 0,\n" +
+				tab + "T: 0,\n" +
+				"}",
+		},
+		{
+			struct {
+				A, B, C, D, E, F, G, H, I, J int
+				K, L, M, N, O, P, Q, R, S, T int
+				U                            int
+			}{},
+			"struct{\n" +
+				tab + "A int\n" +
+				tab + "B int\n" +
+				tab + "C int\n" +
+				tab + "D int\n" +
+				tab + "E int\n" +
+				tab + "F int\n" +
+				tab + "G int\n" +
+				tab + "H int\n" +
+				tab + "I int\n" +
+				tab + "J int\n" +
+				tab + "K int\n" +
+				tab + "L int\n" +
+				tab + "M int\n" +
+				tab + "N int\n" +
+				tab + "O int\n" +
+				tab + "P int\n" +
+				tab + "Q int\n" +
+				tab + "R int\n" +
+				tab + "S int\n" +
+				tab + "T int\n" +
+				tab + "...\n" +
+				"}{\n" +
+				tab + "A: 0,\n" +
+				tab + "B: 0,\n" +
+				tab + "C: 0,\n" +
+				tab + "D: 0,\n" +
+				tab + "E: 0,\n" +
+				tab + "F: 0,\n" +
+				tab + "G: 0,\n" +
+				tab + "H: 0,\n" +
+				tab + "I: 0,\n" +
+				tab + "J: 0,\n" +
+				tab + "K: 0,\n" +
+				tab + "L: 0,\n" +
+				tab + "M: 0,\n" +
+				tab + "N: 0,\n" +
+				tab + "O: 0,\n" +
+				tab + "P: 0,\n" +
+				tab + "Q: 0,\n" +
+				tab + "R: 0,\n" +
+				tab + "S: 0,\n" +
+				tab + "T: 0,\n" +
+				tab + "...\n" +
+				"}",
+		},
 		{(func())(nil), "(func())(nil)"},
 		{func() {}, "func() {...}"},
 		{map[int]int(nil), "map[int]int(nil)"},
 		{map[int]int{}, "map[int]int{}"},
 		{map[int]int{0: 0}, "map[int]int{0:0}"},
-		{map[int]int{0: 0, 1: 1, 2: 2, 3: 3, 4: 4}, "map[int]int{0:0, ...}"},
+		{map[int]int{0: 0, 1: 1, 2: 2, 3: 3, 4: 4}, "map[int]int{\n" +
+			tab + "0: 0,\n" +
+			tab + "1: 1,\n" +
+			tab + "2: 2,\n" +
+			tab + "3: 3,\n" +
+			tab + "4: 4,\n" +
+			"}",
+		},
+		{
+			map[int]int{
+				0: 0, 1: 1, 2: 2, 3: 3, 4: 4,
+				5: 5, 6: 6, 7: 7, 8: 8, 9: 9,
+				10: 10, 11: 11, 12: 12, 13: 13, 14: 14,
+				15: 15, 16: 16, 17: 17, 18: 18, 19: 19,
+			},
+			"map[int]int{\n" +
+				tab + "0:  0,\n" +
+				tab + "1:  1,\n" +
+				tab + "2:  2,\n" +
+				tab + "3:  3,\n" +
+				tab + "4:  4,\n" +
+				tab + "5:  5,\n" +
+				tab + "6:  6,\n" +
+				tab + "7:  7,\n" +
+				tab + "8:  8,\n" +
+				tab + "9:  9,\n" +
+				tab + "10: 10,\n" +
+				tab + "11: 11,\n" +
+				tab + "12: 12,\n" +
+				tab + "13: 13,\n" +
+				tab + "14: 14,\n" +
+				tab + "15: 15,\n" +
+				tab + "16: 16,\n" +
+				tab + "17: 17,\n" +
+				tab + "18: 18,\n" +
+				tab + "19: 19,\n" +
+				"}",
+		},
+		{
+			map[int]int{
+				0: 0, 1: 1, 2: 2, 3: 3, 4: 4,
+				5: 5, 6: 6, 7: 7, 8: 8, 9: 9,
+				10: 10, 11: 11, 12: 12, 13: 13, 14: 14,
+				15: 15, 16: 16, 17: 17, 18: 18, 19: 19,
+				20: 20,
+			},
+			"map[int]int{\n" +
+				tab + "0:  0,\n" +
+				tab + "1:  1,\n" +
+				tab + "2:  2,\n" +
+				tab + "3:  3,\n" +
+				tab + "4:  4,\n" +
+				tab + "5:  5,\n" +
+				tab + "6:  6,\n" +
+				tab + "7:  7,\n" +
+				tab + "8:  8,\n" +
+				tab + "9:  9,\n" +
+				tab + "10: 10,\n" +
+				tab + "11: 11,\n" +
+				tab + "12: 12,\n" +
+				tab + "13: 13,\n" +
+				tab + "14: 14,\n" +
+				tab + "15: 15,\n" +
+				tab + "16: 16,\n" +
+				tab + "17: 17,\n" +
+				tab + "18: 18,\n" +
+				tab + "19: 19,\n" +
+				tab + "...\n" +
+				"}",
+		},
 		{(*int)(nil), "(*int)(nil)"},
 		{ptr(0), "&int(0)"},
 		{ptr(ptr(0)), "&&int(0)"},
@@ -116,7 +351,73 @@ func TestWriteShort(t *testing.T) {
 		{[]int(nil), "[]int(nil)"},
 		{[]int{}, "[]int{}"},
 		{[]int{0}, "[]int{0}"},
-		{[]int{0, 1}, "[]int{0, ...}"},
+		{[]int{0, 1}, "[]int{\n" +
+			tab + "0,\n" +
+			tab + "1,\n" +
+			"}",
+		},
+		{
+			[]int{
+				0, 1, 2, 3, 4,
+				5, 6, 7, 8, 9,
+				10, 11, 12, 13, 14,
+				15, 16, 17, 18, 19,
+			},
+			"[]int{\n" +
+				tab + "0,\n" +
+				tab + "1,\n" +
+				tab + "2,\n" +
+				tab + "3,\n" +
+				tab + "4,\n" +
+				tab + "5,\n" +
+				tab + "6,\n" +
+				tab + "7,\n" +
+				tab + "8,\n" +
+				tab + "9,\n" +
+				tab + "10,\n" +
+				tab + "11,\n" +
+				tab + "12,\n" +
+				tab + "13,\n" +
+				tab + "14,\n" +
+				tab + "15,\n" +
+				tab + "16,\n" +
+				tab + "17,\n" +
+				tab + "18,\n" +
+				tab + "19,\n" +
+				"}",
+		},
+		{
+			[]int{
+				0, 1, 2, 3, 4,
+				5, 6, 7, 8, 9,
+				10, 11, 12, 13, 14,
+				15, 16, 17, 18, 19,
+				20,
+			},
+			"[]int{\n" +
+				tab + "0,\n" +
+				tab + "1,\n" +
+				tab + "2,\n" +
+				tab + "3,\n" +
+				tab + "4,\n" +
+				tab + "5,\n" +
+				tab + "6,\n" +
+				tab + "7,\n" +
+				tab + "8,\n" +
+				tab + "9,\n" +
+				tab + "10,\n" +
+				tab + "11,\n" +
+				tab + "12,\n" +
+				tab + "13,\n" +
+				tab + "14,\n" +
+				tab + "15,\n" +
+				tab + "16,\n" +
+				tab + "17,\n" +
+				tab + "18,\n" +
+				tab + "19,\n" +
+				tab + "...\n" +
+				"}",
+		},
 		{false, "false"},
 		{0, "int(0)"},
 		{"a", `"a"`},
@@ -230,6 +531,7 @@ func TestWriteShort(t *testing.T) {
 			rv := reflect.ValueOf(tt.v)
 			got := fmt.Sprint(formatShort(rv, true))
 			t.Logf("got: %s", got)
+			t.Logf("want: %s", tt.want)
 			if got != tt.want {
 				t.Errorf("formatShort(%#v) = %#q, want %#q", tt.v, got, tt.want)
 			}
@@ -337,7 +639,10 @@ func TestWriteType(t *testing.T) {
 	testWriteType[[0]any](t, "[0]any")
 	testWriteType[struct{}](t, "struct{}")
 	testWriteType[struct{ V any }](t, "struct{ V any }")
-	testWriteType[struct{ V, U any }](t, "struct{ V any; U any }")
+	testWriteType[struct{ V, U any }](t, "struct{\n"+
+		tab+"V any\n"+
+		tab+"U any\n"+
+		"}")
 	testWriteType[func()](t, "func()")
 	testWriteType[func(any)](t, "func(any)")
 	testWriteType[func(any, any)](t, "func(any, any)")
@@ -372,7 +677,7 @@ func testWriteType[T any](t *testing.T, want string) {
 	t.Helper()
 	rt := reflect.TypeOf((*T)(nil)).Elem()
 	var buf bytes.Buffer
-	writeType(&buf, rt)
+	writeType(&buf, rt, false)
 	got := buf.String()
 	t.Logf("got: %s", got)
 	if got != want {
