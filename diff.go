@@ -58,7 +58,6 @@ func Log(a, b any, opt ...Option) {
 // Test compares values got and want, calling f for each difference it finds.
 // By default, its conditions for equality are like reflect.DeepEqual.
 //
-//
 // Test also calls h.Helper() at the top of every internal function.
 // Note that *testing.T and *testing.B satisfy this interface.
 // This makes test output show the file and line number of the call to
