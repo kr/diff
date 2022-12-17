@@ -14,6 +14,7 @@ func TestStringTypeMatch(t *testing.T) {
 	testStringDiff(t, linesMyers, []byte(linesA), []byte(linesB))
 	testStringDiff(t, linesMyers, B(linesA), B(linesB))
 	testStringDiff(t, runesRunes, []rune(runesA), []rune(runesB))
+	testStringDiff(t, runesRunes2, []rune(runesA), []rune(runesC))
 }
 
 func TestTextLines(t *testing.T) {
@@ -185,6 +186,7 @@ const (
 const (
 	runesA = "cqf8vNoIhmGwXgajTst/OKqkm9M"
 	runesB = "cqf8vNoInmGwXgojTst/OKqkm9M="
+	runesC = "cqf8vNoInmGwXgojTst/OKqkm9M=="
 
 	runesMyers = `string[8:9]: "h" != "n"
 string[14:15]: "a" != "o"
@@ -193,7 +195,13 @@ string[27:27]: "" != "="
 
 	runesRunes = `[]int32[8]: 104 != 110
 []int32[14]: 97 != 111
-[]int32[27:27]: {} != {61}
+[]int32[27]: (added) 61
+`
+
+	runesRunes2 = `[]int32[8]: 104 != 110
+[]int32[14]: 97 != 111
+[]int32[27]: (added) 61
+[]int32[27]: (added) 61
 `
 )
 

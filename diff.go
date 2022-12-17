@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/rogpeppe/go-internal/fmtsort"
+	"golang.org/x/exp/constraints"
 	"kr.dev/diff/internal/diffseq"
 )
 
@@ -417,16 +418,21 @@ func seqDiff(e *emitter, as, bs reflect.Value) {
 	for _, ed := range diffseq.Diff(as, bs, eq) {
 		a0, a1 := ed.A0, ed.A1
 		b0, b1 := ed.B0, ed.B1
-		if n := a1 - a0; n == b1-b0 {
-			for i := 0; i < n; i++ {
-				walk(e.subf(as.Type(), "[%d]", a0+i), as.Index(a0+i), bs.Index(b0+i), true, false)
-			}
-			continue
+		// TODO(kr): Find a way to do "fuzzy myers" so we can match
+		// up the "most similar" pairs instead of just starting at
+		// index 0 on both sides.
+		n := min(a1-a0, b1-b0)
+		for i := 0; i < n; i++ {
+			walk(e.subf(as.Type(), "[%d]", a0+i), as.Index(a0+i), bs.Index(b0+i), true, false)
 		}
-		ee := e.subf(as.Type(), "[%d:%d]", a0, a1)
-		afmt := formatShort(as.Slice(a0, a1), false)
-		bfmt := formatShort(bs.Slice(b0, b1), false)
-		ee.emitf("%v != %v", afmt, bfmt)
+		for i := n; i < a1-a0; i++ {
+			ee := e.subf(as.Type(), "[%d]", a0+i)
+			ee.emitf("(removed) %v", formatShort(as.Index(a0+i), false))
+		}
+		for i := n; i < b1-b0; i++ {
+			ee := e.subf(as.Type(), "[%d]", a0) // NOTE(kr): no +i
+			ee.emitf("(added) %v", formatShort(bs.Index(b0+i), false))
+		}
 	}
 }
 
@@ -459,4 +465,11 @@ func access(v reflect.Value) reflect.Value {
 func stackDepth() int {
 	pc := make([]uintptr, 1000)
 	return runtime.Callers(0, pc)
+}
+
+func min[T constraints.Ordered](a, b T) T {
+	if a < b {
+		return a
+	}
+	return b
 }
